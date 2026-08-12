@@ -1,0 +1,907 @@
+/* Подготовка горноспасателей ПОГСВ АСС — оформление по согласованному макету. */
+
+:root {
+  color-scheme: dark;
+
+  --bg:        #070b11;
+  --bg-deep:   #0a0f17;
+  --panel:     #10161f;
+  --panel-2:   #161e29;
+  --panel-3:   #1b2532;
+  --line:      #202b39;
+  --line-soft: #18212c;
+
+  --text:      #e9eff6;
+  --text-dim:  #93a1b2;
+  --text-mute: #64717f;
+
+  /* Заливки режимов заданы с прозрачностью: карточки лежат на снимке
+     выработки и должны его пропускать. */
+  --tests:     #2f80ed;
+  --tests-bg:  rgba(22, 58, 102, .26);
+  --tasks:     #27ae60;
+  --tasks-bg:  rgba(20, 74, 46, .26);
+  --exam:      #e2711d;
+  --exam-bg:   rgba(88, 52, 18, .26);
+  --study:     #14a3a3;
+  --study-bg:  rgba(14, 74, 74, .26);
+
+  --ok:        #27ae60;
+  --bad:       #e0524f;
+  --warn:      #d9a441;
+
+  --radius:    14px;
+  --radius-sm: 10px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0; min-height: 100%;
+  color: var(--text);
+  font: 16px/1.5 "Segoe UI", Roboto, system-ui, Arial, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+/* Серая вспышка по касанию в мобильных браузерах на движке WebKit/Blink
+   выглядит как сбой отрисовки: у нас на каждое нажатие есть своя подсветка. */
+* { -webkit-tap-highlight-color: transparent; }
+/* Убирает задержку ~300 мс перед срабатыванием нажатия: браузер иначе ждёт,
+   не окажется ли это двойным касанием для зума. */
+button, .option, .pick-item, .mode-card, a { touch-action: manipulation; }
+/* Заливка только на html. Если задать её и на body, она перекроет слой
+   с фоновым снимком: фон body рисуется позже потомков с отрицательным z-index. */
+html { background: var(--bg); }
+body { background: transparent; }
+
+/* min-height во весь экран: короткая страница иначе оставляет снизу полосу
+   фонового цвета вместо кадра выработки. dvh учитывает адресную строку
+   мобильного браузера, которая то появляется, то прячется; vh оставлен
+   запасным для браузеров постарше.
+   Нижний отступ — запас под фиксированную панель плюс безопасная зона
+   (индикатор «домой» на iPhone). */
+#app {
+  position: relative; z-index: 1;
+  min-height: 100vh;
+  min-height: 100dvh;
+  max-width: 1080px; margin: 0 auto;
+  padding: 18px 16px calc(110px + env(safe-area-inset-bottom, 0px));
+}
+/* На главном экране нижней панели нет — запас под неё не нужен. */
+#app[data-screen="start"] { padding-bottom: 24px; }
+
+/* ---------------------------------------------------- фон экранов ------- */
+
+/* Снимок выработки за всем приложением. Кадр свой на каждый режим — выбирается
+   по data-screen, который проставляет роутер. Слой закреплён, поэтому при
+   прокрутке длинных списков фон стоит на месте. */
+body::before {
+  content: "";
+  position: fixed; inset: 0; z-index: -2;
+  background-image: url("img/bg-start.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+body[data-screen="tests"]::before    { background-image: url("img/bg-tests.jpg"); }
+body[data-screen="tasks"]::before    { background-image: url("img/bg-tasks.jpg"); }
+body[data-screen="exam"]::before     { background-image: url("img/bg-exam.jpg"); }
+body[data-screen="protocol"]::before { background-image: url("img/bg-exam.jpg"); }
+body[data-screen="study"]::before    { background-image: url("img/bg-tests.jpg"); }
+
+/* Затемнение поверх снимка: на рабочих экранах сплошной текст, фон должен
+   оставаться фоном. На главном своё затемнение — только слева, под формой. */
+body::after {
+  content: "";
+  position: fixed; inset: 0; z-index: -1;
+  background: rgba(5, 8, 12, .84);
+  pointer-events: none;
+}
+body[data-screen="start"]::after { background: rgba(5, 8, 12, .18); }
+
+h1, h2, h3, h4 { margin: 0; font-weight: 700; }
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--text-dim); font-size: 13.5px; }
+
+/* ============================================================ шапка ====== */
+
+.appbar {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 18px; margin-bottom: 16px;
+  background: rgba(15, 21, 30, .78); border: 1px solid var(--line); border-radius: var(--radius);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+          backdrop-filter: blur(14px) saturate(1.1);
+}
+.appbar .nav-btn {
+  width: 34px; height: 34px; padding: 0; flex: none;
+  display: grid; place-items: center;
+  background: transparent; border: none; color: var(--text-dim);
+}
+.appbar .nav-btn:hover { color: var(--text); }
+.appbar h2 {
+  font-size: 20px; letter-spacing: 1.4px; text-transform: uppercase;
+  color: var(--accent, var(--text));
+}
+.appbar .mode-ic { color: var(--accent, var(--text)); display: grid; place-items: center; }
+.appbar .spacer { flex: 1 1 auto; }
+.appbar .who { font-size: 12.5px; color: var(--text-mute); text-align: right; line-height: 1.35; }
+.appbar .who b { display: block; color: var(--text-dim); font-size: 13.5px; font-weight: 600; }
+
+.timer {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 16px; font-weight: 600; color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.timer.is-low { color: var(--bad); }
+
+/* ========================================================== прогресс ===== */
+
+.progress { margin-bottom: 16px; }
+.progress-label { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-dim); margin-bottom: 7px; }
+.progress-track { height: 5px; border-radius: 999px; background: var(--panel-2); overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 999px; background: var(--accent, var(--tests)); transition: width .3s ease; }
+
+/* ============================================================ панели ===== */
+
+/* Панели полупрозрачные с размытием подложки: снимок выработки просматривается
+   по краям и между блоками, но текст на нём не теряется. */
+.panel {
+  background: rgba(15, 21, 30, .78); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 20px 22px; margin-bottom: 14px;
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+          backdrop-filter: blur(14px) saturate(1.1);
+}
+
+/* -------------------------------------------------------- стартовый ----- */
+
+/* Снимок главного экрана лежит на body, поэтому сама панель прозрачная —
+   рамка и заливка только мешали бы кадру. */
+.start {
+  position: relative; overflow: hidden;
+  background: transparent; border: none;
+  border-radius: var(--radius); padding: 26px 28px;
+  min-height: 520px;
+}
+/* Общий вид выработки за всей панелью — пустое место не остаётся плоским.
+   Слой размыт и притемнён: это фон, а не картинка, которую разглядывают.
+   Небольшой выход за края (inset) убирает светлую кайму от размытия. */
+/* Отдельного снимка выработки в макете нет — интерфейс перекрывает фон целиком,
+   вырезать чистую фактуру неоткуда. Поэтому фон берётся из того же кадра:
+   он увеличен и сдвинут так, что в рамку попадает порода со светом ламп,
+   а силуэт остаётся за краем. Умеренное размытие сохраняет фактуру камня
+   и убирает узнаваемые детали. */
+/* Снимок главного экрана берётся из общего слоя на body, поэтому здесь
+   отдельной картинки нет — элемент оставлен пустым для совместимости разметки. */
+.start-bg { display: none; }
+
+/* Затемняется только левая часть, где поверх лежат заголовок и поля.
+   Справа снимок открыт: там спасатель и знак, их закрывать нельзя.
+   Снизу лёгкая подложка, чтобы карточки режимов не спорили с фактурой. */
+.start-veil {
+  position: fixed; inset: 0; z-index: -1;
+  background:
+    linear-gradient(96deg,
+      rgba(5, 8, 12, .90) 0%,
+      rgba(5, 8, 12, .80) 22%,
+      rgba(5, 8, 12, .44) 38%,
+      rgba(5, 8, 12, .10) 54%,
+      rgba(5, 8, 12, 0) 68%),
+    linear-gradient(to top, rgba(5, 8, 12, .42) 0%, rgba(5, 8, 12, .06) 22%, rgba(5, 8, 12, 0) 34%);
+  pointer-events: none;
+}
+
+/* Снимок прижат к правому краю панели во всю её высоту. Шеврон на рукаве
+   находится у правого края кадра, поэтому выравнивание тоже по правому краю —
+   при центрировании он срезается. */
+.start-head { max-width: 400px; }
+
+/* Поля на главном экране тоже лежат на снимке — делаем их полупрозрачными,
+   чтобы не выглядели наклеенными плашками. Размытие держит текст читаемым. */
+.start .field-box {
+  background: rgba(20, 28, 39, .58);
+  border-color: rgba(255, 255, 255, .10);
+  -webkit-backdrop-filter: blur(10px);
+          backdrop-filter: blur(10px);
+}
+.start .field-box:focus-within { border-color: var(--tests); }
+.start-inner { position: relative; z-index: 1; }
+/* Текст и поля держатся левее фотографии; карточки режимов идут во всю ширину. */
+.start-head { max-width: 58%; }
+
+/* Логотип с прозрачным фоном — подложки под ним нет, он лежит на панели. */
+.brand { display: flex; align-items: center; margin-bottom: 24px; }
+.brand img { height: 34px; width: auto; display: block; }
+
+.start h1 { font-size: 28px; line-height: 1.14; letter-spacing: .3px; text-transform: uppercase; }
+/* Название подразделения не должно разрываться на две строки. */
+.start .unit { display: block; font-size: 32px; color: var(--exam); margin-top: 2px; white-space: nowrap; }
+.start .lead { color: var(--text-dim); font-size: 14px; margin: 14px 0 22px; max-width: 40ch; }
+
+.field { margin-bottom: 10px; max-width: 320px; }
+.field-box {
+  position: relative;
+  background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+/* Подпись лежит поверх поля и кликов не перехватывает: иначе часть рамки
+   не нажимается и выпадающий список открывается не с первого раза. */
+.field-box .cap {
+  position: absolute; top: 6px; left: 14px; z-index: 1;
+  font-size: 11.5px; line-height: 1; color: var(--text-mute);
+  pointer-events: none;
+}
+/* Само поле занимает всю площадь рамки — нажать можно в любую точку. */
+.field-box input, .field-box select {
+  display: block; width: 100%;
+  padding: 21px 38px 7px 14px; margin: 0;
+  border: none; background: transparent; color: var(--text);
+  font: 600 15px/1.35 inherit;
+  appearance: none; -webkit-appearance: none;
+  cursor: pointer;
+}
+.field-box input { cursor: text; }
+.field-box input:focus, .field-box select:focus { outline: none; }
+.field-box:focus-within { border-color: var(--tests); }
+.field-box .ic {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--text-mute); pointer-events: none;
+}
+/* Выпадающий список рисует система, поэтому фон и цвет задаём явно —
+   иначе на тёмной теме пункты бывают нечитаемы. */
+.field-box select option { background: #1b2532; color: #e9eff6; }
+.field-error { color: var(--bad); font-size: 13px; margin: 4px 0 0; min-height: 1.15em; }
+
+.pick-label { margin: 22px 0 10px; font-size: 13.5px; color: var(--text-dim); }
+/* Карточки режимов идут во всю ширину панели, включая полосу под снимком —
+   так нижний край заполнен, как на макете. */
+.modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+/* Карточки полупрозрачные: сквозь них виден снимок выработки. Размытие
+   подложки не даёт фактуре породы мешать чтению подписей. */
+.mode-card {
+  display: grid; gap: 4px; justify-items: center; text-align: center;
+  padding: 16px 10px; border-radius: var(--radius);
+  background: var(--c-bg); border: 1px solid var(--c);
+  color: var(--text);
+  -webkit-backdrop-filter: blur(9px) saturate(1.15);
+          backdrop-filter: blur(9px) saturate(1.15);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, .35);
+}
+.mode-card .ic { color: var(--c); margin-bottom: 2px; }
+.mode-card .nm { font-size: 14.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--c); }
+.mode-card .ds { font-size: 12.5px; color: var(--text-dim); font-weight: 400; line-height: 1.35; }
+.mode-card:hover:not(:disabled) { filter: brightness(1.25); }
+.mode-card:disabled { opacity: .45; }
+
+.start-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; color: var(--text-mute); font-size: 12px; }
+/* Сообщения под стартовой панелью выравниваются по её ширине. */
+.start ~ .notice, .start ~ .footer-note { max-width: 760px; margin-left: auto; margin-right: auto; }
+
+/* ------------------------------------------------------ список выбора --- */
+
+.pick-list { display: grid; gap: 10px; }
+.pick-item {
+  display: flex; align-items: center; gap: 14px; text-align: left; width: 100%;
+  padding: 15px 18px; border-radius: var(--radius-sm);
+  background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+}
+.pick-item:hover { border-color: var(--accent, var(--tests)); }
+.pick-item .t { font-weight: 600; }
+.pick-item .n { margin-left: auto; color: var(--text-mute); font-size: 13px; }
+
+/* =========================================================== кнопки ====== */
+
+button {
+  font: inherit; font-weight: 600; cursor: pointer;
+  padding: 11px 20px; border-radius: var(--radius-sm);
+  border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
+  transition: filter .15s, border-color .15s, transform .05s;
+  display: inline-flex; align-items: center; gap: 8px; justify-content: center;
+}
+button:hover:not(:disabled) { border-color: var(--accent, var(--tests)); }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+button:focus-visible { outline: 2px solid var(--accent, var(--tests)); outline-offset: 2px; }
+button.primary { background: var(--accent, var(--tests)); border-color: transparent; color: #fff; }
+button.primary:hover:not(:disabled) { filter: brightness(1.1); }
+button.ok { background: var(--ok); border-color: transparent; color: #fff; }
+
+.actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 20px; }
+.actions .spacer { flex: 1 1 auto; }
+
+/* ========================================================== вопросы ====== */
+
+.question { font-size: 18px; line-height: 1.45; margin-bottom: 18px; }
+.qbox {
+  background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); padding: 16px 18px; margin-bottom: 16px;
+}
+.options { display: grid; gap: 10px; }
+/* Сетка с фиксированными колонками: кружок, буква, текст, отметка.
+   Текст всех вариантов начинается с одной вертикали независимо от длины. */
+.option {
+  display: grid;
+  grid-template-columns: 20px 20px minmax(0, 1fr) 22px;
+  gap: 12px; align-items: start; text-align: left; width: 100%;
+  padding: 13px 16px; font-weight: 400; line-height: 1.45;
+  background: rgba(24, 32, 44, .72); border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.option > span:nth-child(3) { min-width: 0; overflow-wrap: anywhere; }
+.option .marker {
+  width: 20px; height: 20px; margin-top: 2px; border-radius: 50%;
+  border: 2px solid var(--text-mute); display: grid; place-items: center;
+}
+.option .marker::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: transparent; }
+.option .let { color: var(--text-dim); font-weight: 600; margin-top: 1px; }
+.option.is-picked { border-color: var(--accent, var(--tests)); }
+.option.is-picked .marker { border-color: var(--accent, var(--tests)); }
+.option.is-picked .marker::after { background: var(--accent, var(--tests)); }
+.option.is-correct { border-color: var(--ok); background: rgba(39, 174, 96, .13); }
+.option.is-correct .marker { border-color: var(--ok); }
+.option.is-correct .marker::after { background: var(--ok); }
+.option.is-wrong { border-color: var(--bad); background: rgba(224, 82, 79, .13); }
+.option.is-wrong .marker { border-color: var(--bad); }
+.option.is-wrong .marker::after { background: var(--bad); }
+.option .tick { grid-column: 4; margin-top: 1px; }
+.option:disabled { cursor: default; opacity: 1; }
+
+/* --------------------------------------------------------- вердикт ------ */
+
+.verdict {
+  display: flex; gap: 14px; align-items: flex-start;
+  margin-top: 16px; padding: 15px 17px; border-radius: var(--radius-sm);
+  border: 1px solid;
+}
+.verdict.ok  { background: rgba(39, 174, 96, .10); border-color: rgba(39, 174, 96, .45); }
+.verdict.bad { background: rgba(224, 82, 79, .10); border-color: rgba(224, 82, 79, .45); }
+.verdict .vic { flex: none; margin-top: 1px; }
+.verdict.ok .vic  { color: var(--ok); }
+.verdict.bad .vic { color: var(--bad); }
+.verdict b { display: block; margin-bottom: 4px; }
+.verdict.ok b  { color: #6fd39b; }
+.verdict.bad b { color: #f28e8b; }
+.verdict .txt { font-size: 14px; color: var(--text-dim); }
+.verdict .src { display: block; margin-top: 7px; font-size: 12.5px; color: var(--text-mute); }
+/* Снимок показывается целиком. Ширина задана, высота — своя у каждого кадра
+   (у «неверно» фигура вытянутее, чем у «верно»), поэтому никакого max-height:
+   любое ограничение по высоте здесь снова срезало бы каску или руку. */
+.verdict { align-items: stretch; min-height: 132px; }
+.verdict-photo {
+  width: 112px; flex: none; align-self: center;
+  height: auto;
+  object-fit: contain; object-position: center;
+  border-radius: var(--radius-sm);
+}
+.verdict > div { align-self: center; }
+
+/* =========================================================== задачи ====== */
+
+.task-inputs {
+  background: var(--bg-deep); border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm); padding: 14px 17px; margin: 16px 0;
+}
+.task-inputs h4 { font-size: 12.5px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .9px; margin-bottom: 8px; }
+.task-inputs ul { margin: 0; padding-left: 19px; }
+.task-inputs li { font-size: 14px; margin: 4px 0; }
+
+.answer-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.answer-row input {
+  flex: 1 1 200px; max-width: 260px; padding: 12px 14px;
+  background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); color: var(--text); font: inherit;
+}
+.answer-row input:focus { outline: none; border-color: var(--accent, var(--tasks)); }
+.answer-row .unit { color: var(--text-dim); font-size: 14px; }
+
+/* -------------------------------------------------- пошаговое решение --- */
+
+.solve { display: grid; grid-template-columns: 210px 1fr; gap: 16px; margin-top: 16px; }
+.solve-nav { display: grid; gap: 6px; align-content: start; }
+.solve-nav button {
+  display: flex; gap: 10px; align-items: flex-start; text-align: left; width: 100%;
+  padding: 10px 12px; font-size: 13px; font-weight: 500; line-height: 1.3;
+  background: var(--panel-2); border: 1px solid transparent;
+}
+.solve-nav button .n {
+  flex: none; width: 21px; height: 21px; border-radius: 50%;
+  background: var(--panel-3); color: var(--text-dim);
+  display: grid; place-items: center; font-size: 11.5px; font-weight: 700;
+}
+.solve-nav button.is-active { background: var(--tasks-bg); border-color: var(--tasks); }
+.solve-nav button.is-active .n { background: var(--tasks); color: #fff; }
+.solve-body {
+  background: var(--bg-deep); border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm); padding: 16px 18px;
+}
+.solve-body h4 { font-size: 15px; color: var(--tasks); margin-bottom: 8px; }
+.solve-body .val { font-size: 15px; font-variant-numeric: tabular-nums; margin: 6px 0; }
+.solve-body .pt { margin-top: 10px; font-size: 12.5px; color: var(--text-mute); }
+.solve-body .dt { margin-top: 8px; font-size: 13px; color: var(--text-dim); }
+
+/* ============================================================ схема ====== */
+
+.scheme-wrap {
+  margin: 16px 0; padding: 10px; overflow-x: auto;
+  background: var(--bg-deep); border: 1px solid var(--line-soft); border-radius: var(--radius-sm);
+}
+.scheme { display: block; width: 100%; min-width: 540px; height: auto; }
+.scheme-route { stroke: var(--exam); stroke-width: 2.5; stroke-linejoin: round; }
+.scheme-node { fill: var(--tests); }
+.scheme-node.is-base { fill: var(--ok); }
+.scheme-node.is-target { fill: var(--bad); }
+.scheme-len { font: 600 13px "Segoe UI", Arial; fill: var(--text); }
+.scheme-angle { font: 12px "Segoe UI", Arial; fill: var(--text-dim); }
+.scheme-node-label { font: 11.5px "Segoe UI", Arial; fill: var(--text-mute); }
+
+/* ====================================================== тестирование ==== */
+
+.exam-overview { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center; }
+.exam-overview .ttl { font-size: 17px; margin-bottom: 6px; }
+.exam-overview .cnt { color: var(--text-dim); font-size: 14px; margin-bottom: 12px; }
+
+.part-card { display: flex; align-items: center; gap: 16px; padding: 16px 18px; }
+.part-card .pic {
+  width: 46px; height: 46px; flex: none; border-radius: var(--radius-sm);
+  background: var(--c-bg); color: var(--c); display: grid; place-items: center;
+}
+.part-card .info { flex: 1 1 auto; min-width: 0; }
+.part-card .info h4 { font-size: 15.5px; color: var(--c); margin-bottom: 2px; }
+.part-card .info .sub { font-size: 13px; color: var(--text-dim); margin-bottom: 8px; }
+.part-card .bar { display: flex; align-items: center; gap: 10px; }
+.part-card .bar .progress-track { flex: 1 1 auto; }
+.part-card .bar .pct { font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
+/* ============================================================ итоги ====== */
+
+.summary-grid { display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: center; }
+.donut { width: 176px; height: 176px; }
+.donut-track { stroke: var(--panel-3); }
+.donut-fill { stroke: var(--ok); stroke-linecap: round; transition: stroke-dashoffset .7s ease; }
+.donut-fill.is-bad { stroke: var(--bad); }
+.donut-fill.is-part { stroke: var(--exam); }
+.donut-text { font: 700 34px "Segoe UI", Arial; fill: var(--text); }
+.donut-sub { font: 12px "Segoe UI", Arial; fill: var(--text-dim); }
+
+.score-rows { display: grid; gap: 10px; }
+.score-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 16px;
+  padding: 14px 18px; background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.score-row .v { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.score-row .v small { font-size: 14px; color: var(--text-mute); font-weight: 400; }
+.score-row.total { border-color: var(--exam); }
+.score-row.total .v { color: var(--exam); }
+
+.banner {
+  display: flex; gap: 14px; align-items: center;
+  margin-top: 16px; padding: 15px 18px; border-radius: var(--radius-sm);
+}
+.banner.ok  { background: rgba(39, 174, 96, .11); border: 1px solid rgba(39, 174, 96, .4); }
+.banner.bad { background: rgba(224, 82, 79, .11); border: 1px solid rgba(224, 82, 79, .4); }
+.banner .bic { flex: none; }
+.banner.ok .bic  { color: var(--exam); }
+.banner.bad .bic { color: var(--bad); }
+.banner b { display: block; margin-bottom: 3px; }
+.banner.ok b  { color: #6fd39b; }
+.banner.bad b { color: #f28e8b; }
+.banner span { font-size: 14px; color: var(--text-dim); }
+
+.exam-title { text-align: center; font-size: 24px; color: var(--exam); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; }
+
+/* ======================================================= слабые темы ===== */
+
+.weak {
+  margin-top: 18px; padding: 16px 18px;
+  background: var(--bg-deep); border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+}
+.weak h4 { font-size: 15px; margin-bottom: 4px; }
+.weak-list { display: grid; gap: 8px; }
+.weak-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 22px;
+  grid-template-areas: "t n g" "b b g";
+  gap: 6px 12px; align-items: center; text-align: left; width: 100%;
+  padding: 12px 14px;
+  background: var(--panel-2); border: 1px solid var(--line);
+}
+.weak-item:hover { border-color: var(--bad); }
+.weak-item .wt { grid-area: t; font-weight: 600; font-size: 14.5px; min-width: 0; overflow-wrap: anywhere; }
+.weak-item .wn { grid-area: n; font-size: 12.5px; color: #f28e8b; white-space: nowrap; }
+.weak-item .wbar { grid-area: b; }
+.weak-item .wgo { grid-area: g; color: var(--text-mute); display: grid; place-items: center; }
+
+/* ============================================================ разбор ===== */
+
+.review-item { padding: 15px 18px; margin-bottom: 10px; border-radius: var(--radius-sm); background: var(--panel-2); border: 1px solid var(--line); border-left-width: 3px; }
+.review-item.ok  { border-left-color: var(--ok); }
+.review-item.bad { border-left-color: var(--bad); }
+.review-item .q { font-weight: 600; margin-bottom: 9px; line-height: 1.4; }
+.review-item .line { font-size: 14px; margin: 4px 0; display: flex; gap: 8px; }
+.review-item .line .k { color: var(--text-mute); flex: none; min-width: 132px; }
+.review-item .line.bad .a { color: #f28e8b; }
+.review-item .line.ok .a { color: #6fd39b; }
+.review-item .tag { font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: var(--tasks); }
+
+/* ========================================================== протокол ===== */
+
+.report-grid { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: stretch; }
+.report-photo { width: 190px; border-radius: var(--radius-sm); object-fit: cover; object-position: center top; }
+
+.protocol {
+  background: #efe9dc; color: #1b1f24;
+  border-radius: 4px; padding: 24px 26px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+}
+.protocol h3 { font-size: 15px; margin-bottom: 14px; letter-spacing: .5px; }
+.protocol dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0 0 16px; font-size: 14px; }
+.protocol dt { color: #5d6570; }
+.protocol dd { margin: 0; font-weight: 600; }
+/* Фиксированная раскладка и перенос по буквам: иначе длинные вопросы
+   растягивают таблицу за пределы экрана телефона. */
+.protocol table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.protocol th, .protocol td { overflow-wrap: anywhere; hyphens: auto; }
+.protocol th, .protocol td { border-bottom: 1px solid #cdc5b5; padding: 7px 4px; text-align: left; font-size: 14px; }
+.protocol th { color: #5d6570; font-weight: 500; }
+.protocol td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.protocol tr.total td, .protocol tr.total th { border-top: 2px solid #a89d88; border-bottom: none; font-weight: 700; }
+.protocol .accent { color: #c25a12; }
+.protocol .sign { margin-top: 30px; display: flex; justify-content: space-between; gap: 20px; font-size: 12.5px; color: #4c545e; }
+
+/* ================================================== нижняя навигация ==== */
+
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  background: rgba(11, 16, 23, .82);
+  border-top: 1px solid var(--line);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+          backdrop-filter: blur(14px) saturate(1.1);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.tabbar button {
+  flex-direction: column; gap: 3px; padding: 9px 4px;
+  background: none; border: none; border-radius: 0;
+  color: var(--text-mute); font-size: 11.5px; font-weight: 500;
+  line-height: 1.2; text-align: center;
+}
+.tabbar button .ic { display: grid; place-items: center; }
+.tabbar button:hover { color: var(--text-dim); }
+.tabbar button.is-active { color: var(--c); }
+
+/* ========================================================== изучение ===== */
+
+/* Две колонки: слева меню тем, справа ответ. */
+.study-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+.study-main { min-width: 0; }
+
+.study-body {
+  background: var(--bg-deep); border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm); padding: 18px 20px; margin-top: 12px;
+  font-size: 15.5px; line-height: 1.62; color: var(--text);
+}
+.study-body p { margin: 0 0 12px; }
+.study-body p:last-child { margin-bottom: 0; }
+.study-topic { font-size: 18px; line-height: 1.4; }
+
+.study-nav { display: grid; gap: 6px; align-content: start; }
+.study-nav-title {
+  font-size: 11.5px; text-transform: uppercase; letter-spacing: .9px;
+  color: var(--text-mute); margin-bottom: 4px; padding: 0 2px;
+}
+.study-nav button {
+  display: grid; grid-template-columns: 21px minmax(0, 1fr); gap: 10px;
+  align-items: start; text-align: left; width: 100%;
+  padding: 10px 13px; font-size: 13.5px; font-weight: 500; line-height: 1.35;
+  background: var(--panel-2); border: 1px solid transparent;
+}
+.study-nav button .n {
+  width: 21px; height: 21px; border-radius: 50%;
+  background: var(--panel-3); color: var(--text-dim);
+  display: grid; place-items: center; font-size: 11.5px; font-weight: 700;
+}
+.study-nav button .tt {
+  min-width: 0; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.study-nav button.is-active { background: var(--study-bg); border-color: var(--study); }
+.study-nav button.is-active .n { background: var(--study); color: #fff; }
+.study-nav button.is-active .tt { -webkit-line-clamp: 6; }
+
+/* ============================================ сообщение об ошибке ======== */
+
+/* Кнопка под вопросом и под задачей. Заметная, но не спорящая с «Далее»:
+   приглушённый янтарь, подпись второй строкой — что именно сюда писать. */
+.report-row { display: flex; margin-top: 16px; }
+.report-btn {
+  display: inline-flex; align-items: center; gap: 11px;
+  padding: 9px 16px 9px 11px; text-align: left;
+  color: var(--text-dim);
+  background: linear-gradient(180deg, rgba(230, 160, 60, .10), rgba(230, 160, 60, .04));
+  border: 1px solid rgba(230, 160, 60, .30);
+  border-radius: 999px;
+  transition: border-color .16s, background .16s, color .16s, transform .16s;
+}
+.report-ico {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; flex: none; border-radius: 50%;
+  color: var(--warn);
+  background: rgba(230, 160, 60, .14);
+  border: 1px solid rgba(230, 160, 60, .32);
+}
+.report-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.report-t { font-size: 13.5px; font-weight: 600; letter-spacing: .2px; }
+.report-s { font-size: 11.5px; color: var(--text-mute); }
+
+.report-btn:hover {
+  color: var(--text);
+  border-color: rgba(230, 160, 60, .60);
+  background: linear-gradient(180deg, rgba(230, 160, 60, .18), rgba(230, 160, 60, .07));
+  transform: translateY(-1px);
+}
+.report-btn:hover .report-ico { background: rgba(230, 160, 60, .24); }
+.report-btn:active { transform: none; }
+.report-btn:focus-visible { outline: 2px solid var(--warn); outline-offset: 2px; }
+
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  background: rgba(4, 7, 11, .72);
+  -webkit-backdrop-filter: blur(4px);
+          backdrop-filter: blur(4px);
+}
+body.is-modal { overflow: hidden; }
+
+.modal {
+  width: 100%; max-width: 560px;
+  max-height: 88vh;
+  max-height: 88dvh;   /* с учётом адресной строки мобильного браузера */
+  display: flex; flex-direction: column;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .6);
+}
+/* Докрутив список до конца, палец не должен утягивать за собой всю страницу. */
+.modal-body { overscroll-behavior: contain; }
+.modal-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 18px; border-bottom: 1px solid var(--line-soft);
+}
+.modal-head h3 { font-size: 16px; }
+.modal-x { margin-left: auto; padding: 4px; background: none; border: none; color: var(--text-mute); }
+.modal-x:hover { color: var(--text); }
+.modal-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; flex: none; border-radius: 50%;
+  color: var(--warn);
+  background: rgba(230, 160, 60, .14);
+  border: 1px solid rgba(230, 160, 60, .32);
+}
+.modal-report .modal-head { gap: 11px; }
+.modal-note {
+  margin: 12px 0 0; font-size: 12.5px; line-height: 1.5;
+  color: var(--text-mute);
+}
+
+.modal-body { padding: 16px 18px; overflow-y: auto; }
+.modal-ctx {
+  padding: 11px 13px; margin-bottom: 14px;
+  background: var(--bg-deep); border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+}
+.modal-ctx .k { font-size: 11.5px; text-transform: uppercase; letter-spacing: .8px; color: var(--text-mute); margin-bottom: 5px; }
+.modal-ctx .t { font-size: 13.5px; color: var(--text-dim); line-height: 1.45; }
+.modal-label { display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 6px; }
+.modal textarea {
+  width: 100%; padding: 11px 13px; resize: vertical;
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  font: inherit; font-size: 14.5px; line-height: 1.45;
+}
+.modal textarea:focus { outline: none; border-color: var(--tests); }
+
+.modal-foot {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  padding: 14px 18px; border-top: 1px solid var(--line-soft);
+}
+.modal-foot .spacer { flex: 1 1 auto; }
+.modal-foot button { padding: 9px 15px; font-size: 14px; }
+
+/* Три уровня кнопок в подвале: отказ — вспомогательное — главное действие. */
+.modal-foot .btn-quiet {
+  background: none; border: 1px solid transparent; color: var(--text-mute);
+}
+.modal-foot .btn-quiet:hover { color: var(--text); border-color: var(--line); }
+
+.modal-foot .btn-ghost {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--panel-2); border: 1px solid var(--line); color: var(--text-dim);
+}
+.modal-foot .btn-ghost:hover { color: var(--text); border-color: var(--line-strong, var(--text-mute)); }
+
+.btn-send {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 18px; font-size: 14px; font-weight: 600; color: #14100a;
+  background: linear-gradient(180deg, #f0ac48, #d98f24);
+  border: 1px solid rgba(255, 210, 140, .55);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 6px 16px rgba(217, 143, 36, .28);
+  transition: filter .16s, transform .16s, box-shadow .16s;
+}
+.btn-send:hover { filter: brightness(1.07); transform: translateY(-1px); }
+.btn-send:active { transform: none; }
+.btn-send:focus-visible { outline: 2px solid #f0ac48; outline-offset: 2px; }
+.btn-send svg { stroke-width: 2; }
+
+/* Пока идёт отправка — кнопка гаснет и не принимает повторных нажатий. */
+.btn-send.is-busy, .btn-send:disabled {
+  filter: none; opacity: .6; cursor: default; transform: none; box-shadow: none;
+}
+
+/* Экран после успешной отправки — вместо тела окна. */
+.modal-done { padding: 34px 26px 26px; text-align: center; }
+.modal-done .done-ico {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 56px; height: 56px; margin-bottom: 14px; border-radius: 50%;
+  color: var(--ok);
+  background: rgba(39, 174, 96, .12);
+  border: 1px solid rgba(39, 174, 96, .40);
+}
+.modal-done .done-ico svg { width: 30px; height: 30px; }
+.modal-done h3 { font-size: 17px; margin-bottom: 7px; }
+.modal-done p { font-size: 13.5px; line-height: 1.55; color: var(--text-dim); margin-bottom: 20px; }
+
+/* ============================================================ прочее ===== */
+
+.notice {
+  padding: 13px 16px; margin-bottom: 14px; font-size: 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(217, 164, 65, .09); border-left: 3px solid var(--warn); color: #e6d0a2;
+}
+.footer-note { margin-top: 20px; text-align: center; color: var(--text-mute); font-size: 12px; }
+
+/* ============================================================= печать ==== */
+
+@media print {
+  #app { max-width: none; padding: 0; }
+  .appbar, .actions, .tabbar, .no-print, .report-photo { display: none !important; }
+  .report-grid { display: block; }
+  html, body { background: #fff; color: #000; }
+  .protocol { box-shadow: none; background: #fff; border-radius: 0; padding: 0; }
+}
+
+/* ======================================================= адаптивность ==== */
+
+@media (max-width: 980px) {
+  .start-head { max-width: 58%; }
+  .solve { grid-template-columns: 1fr; }
+  .report-grid { grid-template-columns: 1fr; }
+  .report-photo { display: none; }
+}
+
+@media (max-width: 860px) {
+  /* Меню тем становится горизонтальной лентой над текстом: на телефоне
+     колонка в 300 px съела бы весь экран. */
+  .study-layout { grid-template-columns: 1fr; gap: 14px; }
+  .study-nav {
+    grid-auto-flow: column; grid-auto-columns: minmax(190px, 76vw);
+    overflow-x: auto; padding-bottom: 6px;
+    scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+  }
+  .study-nav button { scroll-snap-align: start; }
+  .study-nav-title { display: none; }
+  .study-nav button .tt,
+  .study-nav button.is-active .tt { -webkit-line-clamp: 2; }
+}
+
+@media (max-width: 760px) {
+  .modes { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 620px) {
+  #app { padding: 12px 12px 100px; }
+  .start { padding: 18px 14px; }
+  /* На телефоне колонка в 60 % не вмещает слово «ГОРНОСПАСАТЕЛЕЙ»: отдаём
+     заголовку всю ширину, а снимок уходит под текст с плотной вуалью. */
+  .start-head { max-width: none; }
+  .start-veil {
+    background:
+      linear-gradient(180deg,
+        rgba(5, 8, 12, .82) 0%,
+        rgba(5, 8, 12, .90) 45%,
+        rgba(5, 8, 12, .94) 100%);
+  }
+  .start h1 { font-size: 20px; }
+  .start .unit { font-size: 23px; }
+  .brand img { height: 32px; }
+  .field-box input, .field-box select { padding: 21px 34px 7px 12px; }
+  .modes { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .mode-card { padding: 12px 8px; }
+  .mode-card .nm { font-size: 12.5px; letter-spacing: .4px; }
+  .mode-card .ds { font-size: 11px; }
+  .panel { padding: 16px 15px; }
+  .question { font-size: 16.5px; }
+  .summary-grid { grid-template-columns: 1fr; justify-items: center; }
+  .exam-overview { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+  .appbar { padding: 12px 14px; gap: 10px; }
+  .appbar h2 { font-size: 16px; letter-spacing: 1px; }
+  .appbar .who { display: none; }
+  .tabbar button { font-size: 10.5px; padding: 8px 2px; gap: 2px; }
+  .tabbar button .ic svg { width: 21px; height: 21px; }
+  .study-body { padding: 15px 15px; font-size: 15px; }
+  .review-item .line { flex-direction: column; gap: 2px; }
+  .review-item .line .k { min-width: 0; }
+
+  /* Протокол на телефоне: подписи над значениями, таблицы мельче. */
+  .protocol { padding: 16px 14px; }
+  .protocol dl { grid-template-columns: 1fr; gap: 0 0; }
+  .protocol dt { margin-top: 8px; font-size: 12px; }
+  .protocol dd { font-size: 14px; }
+  .protocol th, .protocol td { padding: 6px 3px; font-size: 12.5px; }
+  .protocol .sign { flex-direction: column; gap: 14px; }
+
+  /* Итоговые кольца и подписи вкладок компактнее. */
+  .donut { width: 148px; height: 148px; }
+  .weak-item { grid-template-columns: minmax(0, 1fr) 20px;
+               grid-template-areas: "t g" "n g" "b b"; }
+  .modal-foot button { flex: 1 1 46%; justify-content: center; }
+  .modal-foot .btn-send { flex: 1 1 100%; order: -1; }
+  .modal-foot .spacer { display: none; }
+  .modal-done { padding: 26px 18px 20px; }
+
+  /* Кнопка обращения на телефоне — во всю ширину, подпись убрана. */
+  .report-btn { width: 100%; border-radius: var(--radius-sm); }
+  .report-s { display: none; }
+
+  /* Вердикт: снимок уже, чтобы тексту оставалась читаемая колонка. */
+  .verdict { gap: 11px; padding: 13px 13px; }
+  .verdict-photo { width: 84px; }
+
+  /* Ряды кнопок в подвале экранов: на узком экране в строку они не влезают,
+     и «Далее» уезжала за край. Раскладываем в колонку, главная — сверху. */
+  .actions { flex-wrap: wrap; gap: 8px; }
+  .actions .spacer { display: none; }
+  .actions button { flex: 1 1 100%; justify-content: center; }
+  .actions button.primary, .actions button.ok { order: -1; }
+}
+
+/* Сенсорный экран любой ширины — телефон, планшет, панель в учебном классе.
+   Привязываться к ширине здесь нельзя: телефон, повёрнутый набок, шире 620 px,
+   но палец от этого толще не становится. */
+@media (pointer: coarse) {
+  /* Ровно 16px, не меньше: при меньшем размере Safari на iPhone зумит всю
+     страницу, как только палец попадает в поле, и обратно она не вернётся. */
+  .field-box input, .field-box select,
+  .modal textarea, .answer-row input { font-size: 16px; }
+
+  /* Цели касания не мельче 44 px — иначе в перчатке не попасть. */
+  .appbar .nav-btn { width: 44px; height: 44px; margin: -5px 0 -5px -6px; }
+  .modal-x { width: 40px; height: 40px; display: grid; place-items: center; padding: 0; }
+  .option, .pick-item, .tabbar button, .actions button,
+  .modal-foot button, .solve-nav button, .weak-item { min-height: 44px; }
+
+  /* Наведения на сенсорном экране не бывает: подсветка «залипала» после
+     нажатия и вводила в заблуждение. */
+  .report-btn:hover, .btn-send:hover { transform: none; }
+}
+
+/* Телефон в горизонтальном положении: по высоте остаётся мало места,
+   поэтому шапка и нижняя панель ужимаются, а стартовая панель перестаёт
+   держать минимальную высоту. */
+@media (orientation: landscape) and (max-height: 480px) {
+  #app { padding: 10px 14px calc(74px + env(safe-area-inset-bottom, 0px)); }
+  .appbar { padding: 8px 14px; margin-bottom: 10px; }
+  .start { min-height: 0; padding: 16px 18px; }
+  .tabbar button { padding: 5px 3px; font-size: 10px; }
+  .tabbar button .ic svg { width: 18px; height: 18px; }
+  .modal { max-height: 94dvh; }
+  .modal textarea { min-height: 64px; }
+}

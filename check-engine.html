@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Самопроверка движка задач — ПОГСВ АСС</title>
+<style>
+  :root { color-scheme: light; }
+  body { font: 14px/1.55 "Segoe UI", Arial, sans-serif; margin: 0; padding: 24px 32px; background: #fff; color: #14181d; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 17px; margin: 28px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #14181d; }
+  .sub { color: #5a6470; margin: 0 0 18px; }
+  button { font: inherit; padding: 7px 16px; border: 1px solid #14181d; background: #14181d; color: #fff; border-radius: 4px; cursor: pointer; }
+  button.ghost { background: #fff; color: #14181d; }
+  table { border-collapse: collapse; margin: 10px 0; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { border: 1px solid #b8c0ca; padding: 4px 9px; text-align: left; vertical-align: top; }
+  th { background: #eef1f4; }
+  td.num { text-align: right; }
+  .summary { font-size: 15px; font-weight: 700; padding: 10px 14px; margin: 12px 0; border-radius: 4px; }
+  .summary.ok { background: #e6f6ec; color: #1d7a3e; }
+  .summary.bad { background: #fdeaea; color: #c02020; }
+  .pass { color: #1d7a3e; } .fail { color: #c02020; font-weight: 700; }
+  .sample { border: 1px solid #d4dae1; border-radius: 6px; padding: 12px 16px; margin: 10px 0; }
+  .sample h3 { margin: 0 0 6px; font-size: 14px; }
+  .sample .q { margin: 6px 0; }
+  .sample ol { margin: 6px 0; padding-left: 22px; }
+  .sample li { font-size: 13px; color: #38414c; }
+  .ans { font-weight: 700; }
+  .scheme { max-width: 100%; height: auto; color: #14181d; }
+  .scheme-route { stroke: #c05a12; stroke-width: 3; }
+  .scheme-node { fill: #14181d; }
+  .scheme-node.is-base { fill: #1d7a3e; }
+  .scheme-node.is-target { fill: #c02020; }
+  .scheme-len { font: 600 13px "Segoe UI", Arial; fill: #14181d; }
+  .scheme-angle { font: 12px "Segoe UI", Arial; fill: #5a6470; }
+  .scheme-node-label { font: 12px "Segoe UI", Arial; fill: #38414c; }
+  code { background: #f1f3f6; padding: 1px 4px; border-radius: 3px; font-size: 12.5px; }
+</style>
+</head>
+<body>
+
+<h1>Самопроверка движка задач</h1>
+<p class="sub">Массовая генерация с прогоном каждой задачи через два независимых решателя, независимый пересчёт ответа, обратную подстановку и <span id="checkCount">все</span> проверок валидатора. Показывается всё, что отклонено, и почему.</p>
+
+<p>
+  <button id="run">Прогнать 500 задач</button>
+  <button id="run5k" class="ghost">Прогнать 5000</button>
+  <button id="samples" class="ghost">Показать примеры</button>
+</p>
+
+<div id="out"></div>
+
+<script src="app/config.js?v=1.7.0"></script>
+<script src="app/data/normative/sources.js?v=1.7.0"></script>
+<script src="app/data/normative/ustav-251.js?v=1.7.0"></script>
+<script src="app/data/normative/fnp-520-app6.js?v=1.7.0"></script>
+<script src="app/data/normative/fnp-520-app7.js?v=1.7.0"></script>
+<script src="app/data/normative/apparatus.js?v=1.7.0"></script>
+<script src="app/data/tasks/types.js?v=1.7.0"></script>
+<script src="app/data/tasks/ranges.js?v=1.7.0"></script>
+<script src="app/engine/rng.js?v=1.7.0"></script>
+<script src="app/engine/units.js?v=1.7.0"></script>
+<script src="app/engine/solvers/dask.js?v=1.7.0"></script>
+<script src="app/engine/solvers/thermal.js?v=1.7.0"></script>
+<script src="app/engine/solvers/smoke.js?v=1.7.0"></script>
+<script src="app/engine/scheme.js?v=1.7.0"></script>
+<script src="app/engine/generator.js?v=1.7.0"></script>
+<script src="app/engine/validator.js?v=1.7.0"></script>
+<script src="app/engine/pipeline.js?v=1.7.0"></script>
+<script>
+(function () {
+  'use strict';
+  var out = document.getElementById('out');
+  var G = VGSCH.engine.generator;
+  var V = VGSCH.engine.validator;
+  var P = VGSCH.engine.pipeline;
+  var T = VGSCH.data.taskTypes;
+  var U = VGSCH.engine.units;
+
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+  function run(total) {
+    out.innerHTML = '';
+    var implemented = G.implementedTypes().filter(function (id) {
+      var t = T.byId(id); return t && t.status === 'ENABLED';
+    });
+    var perType = Math.max(1, Math.round(total / implemented.length));
+
+    var stats = {};
+    var reasons = {};
+    var coverage = { angleCategory: {}, tempRow: {}, k3: {}, feasible: { yes: 0, no: 0 } };
+    var errors = [];
+
+    implemented.forEach(function (id) {
+      stats[id] = { valid: 0, rejected: 0, attempts: 0, failed: 0 };
+      for (var i = 0; i < perType; i++) {
+        try {
+          var r = P.produceType(id, VGSCH.engine.rng.freshSeed());
+          stats[id].valid++;
+          stats[id].attempts += r.attempts;
+          stats[id].rejected += r.rejected.length;
+          r.rejected.forEach(function (rj) {
+            var key = rj.reason.split(':')[0];
+            reasons[key] = (reasons[key] || 0) + 1;
+          });
+          record(coverage, r.task);
+        } catch (e) {
+          stats[id].failed++;
+          errors.push(id + ': ' + e.message);
+        }
+      }
+    });
+
+    render(stats, reasons, coverage, errors, implemented, perType);
+  }
+
+  function record(cov, task) {
+    if (task.solved) {
+      var c = task.solved.primary.allocation.category;
+      cov.angleCategory[c] = (cov.angleCategory[c] || 0) + 1;
+    }
+    if (task.inputs.temperaturesC) {
+      task.inputs.temperaturesC.forEach(function (t) {
+        cov.tempRow[t] = (cov.tempRow[t] || 0) + 1;
+      });
+    }
+    if (task.inputs.visibilityM !== undefined) {
+      var k = VGSCH.normative.fnp520app7.smokeCoefficient(task.inputs.visibilityM).value;
+      cov.k3[k] = (cov.k3[k] || 0) + 1;
+    }
+    if (task.answer.type === 'boolean') {
+      cov.feasible[task.answer.value ? 'yes' : 'no']++;
+    }
+  }
+
+  function render(stats, reasons, cov, errors, implemented, perType) {
+    var totalValid = 0, totalFailed = 0, totalRejected = 0;
+    Object.keys(stats).forEach(function (k) {
+      totalValid += stats[k].valid; totalFailed += stats[k].failed; totalRejected += stats[k].rejected;
+    });
+
+    var bad = totalFailed > 0 || errors.length > 0;
+    out.insertAdjacentHTML('beforeend',
+      '<div class="summary ' + (bad ? 'bad' : 'ok') + '">' +
+      (bad ? 'Не удалось построить задач: ' + totalFailed
+           : 'Получено VALID: ' + totalValid + ' из ' + totalValid + ' попыток по ' +
+             implemented.length + ' типам (по ' + perType + ' на тип)') +
+      '</div>');
+
+    out.insertAdjacentHTML('beforeend', '<h2>По типам задач</h2>');
+    var rows = implemented.map(function (id) {
+      var s = stats[id], t = T.byId(id);
+      var avg = s.valid ? (s.attempts / s.valid).toFixed(2) : '—';
+      return '<tr><td>' + id + '</td><td>' + esc(t.title) + '</td><td>' + esc(t.group) + '</td>' +
+             '<td class="num">' + s.valid + '</td>' +
+             '<td class="num">' + s.rejected + '</td>' +
+             '<td class="num">' + avg + '</td>' +
+             '<td class="' + (s.failed ? 'fail' : 'pass') + '">' + (s.failed ? 'отказов: ' + s.failed : 'ок') + '</td></tr>';
+    }).join('');
+    out.insertAdjacentHTML('beforeend',
+      '<table><tr><th>Тип</th><th>Название</th><th>Группа</th><th>VALID</th>' +
+      '<th>Отклонено</th><th>Попыток на задачу</th><th>Итог</th></tr>' + rows + '</table>');
+
+    out.insertAdjacentHTML('beforeend', '<h2>Причины отклонения</h2>');
+    var rk = Object.keys(reasons).sort(function (a, b) { return reasons[b] - reasons[a]; });
+    out.insertAdjacentHTML('beforeend', rk.length
+      ? '<table><tr><th>Проверка</th><th>Отклонено</th></tr>' +
+        rk.map(function (k) { return '<tr><td>' + esc(k) + '</td><td class="num">' + reasons[k] + '</td></tr>'; }).join('') +
+        '</table>'
+      : '<p>Ни одна попытка не отклонена.</p>');
+
+    out.insertAdjacentHTML('beforeend', '<h2>Покрытие граничных случаев</h2>');
+    var catNames = {
+      half_half: 'подъём, горизонталь или спуск до 10° включительно (½–½)',
+      third_two_thirds: 'спуск с углом более 10° (⅓–⅔)'
+    };
+    out.insertAdjacentHTML('beforeend',
+      '<table><tr><th>Категория распределения запаса (Устав п. 22)</th><th>Задач</th></tr>' +
+      Object.keys(cov.angleCategory).map(function (k) {
+        return '<tr><td>' + esc(catNames[k] || k) + '</td><td class="num">' + cov.angleCategory[k] + '</td></tr>';
+      }).join('') + '</table>');
+
+    var tempKeys = Object.keys(cov.tempRow).map(Number).sort(function (a, b) { return a - b; });
+    out.insertAdjacentHTML('beforeend',
+      '<table><tr><th>Температура, °C</th>' + tempKeys.map(function (k) { return '<th>' + k + '</th>'; }).join('') + '</tr>' +
+      '<tr><td>задач</td>' + tempKeys.map(function (k) { return '<td class="num">' + cov.tempRow[k] + '</td>'; }).join('') + '</tr></table>');
+
+    var kKeys = Object.keys(cov.k3);
+    out.insertAdjacentHTML('beforeend',
+      '<table><tr><th>Коэффициент задымлённости k₃</th>' + kKeys.map(function (k) { return '<th>' + String(k).replace('.', ',') + '</th>'; }).join('') + '</tr>' +
+      '<tr><td>задач</td>' + kKeys.map(function (k) { return '<td class="num">' + cov.k3[k] + '</td>'; }).join('') + '</tr></table>');
+
+    out.insertAdjacentHTML('beforeend',
+      '<p>Задач с ответом «выполнить возможно»: <b>' + cov.feasible.yes +
+      '</b>, «невозможно»: <b>' + cov.feasible.no + '</b>.</p>');
+
+    if (errors.length) {
+      out.insertAdjacentHTML('beforeend', '<h2>Отказы генерации</h2><ul>' +
+        errors.slice(0, 20).map(function (e) { return '<li class="fail">' + esc(e) + '</li>'; }).join('') + '</ul>');
+    }
+  }
+
+  function showSamples() {
+    out.innerHTML = '<h2>Примеры задач</h2>';
+    var implemented = G.implementedTypes().filter(function (id) {
+      var t = T.byId(id); return t && t.status === 'ENABLED';
+    });
+    implemented.forEach(function (id) {
+      var t;
+      try { t = P.produceType(id, VGSCH.engine.rng.freshSeed()).task; }
+      catch (e) { out.insertAdjacentHTML('beforeend', '<p class="fail">' + id + ': ' + esc(e.message) + '</p>'); return; }
+
+      var ans = t.answer.type === 'numeric'
+        ? U.fmt(t.answer.value, t.answer.decimals) + ' ' + t.answer.unit
+        : t.answer.options.filter(function (o) { return o.value === t.answer.value; })[0].label;
+
+      var html = '<div class="sample"><h3>' + t.task_id + ' · ' + esc(T.byId(id).title) +
+                 ' · <span class="pass">' + t.validation.status + '</span></h3>' +
+                 '<div class="q">' + esc(t.question) + '</div>';
+      if (t.scheme && t.scheme.required) html += VGSCH.engine.scheme.render(t);
+      html += '<div class="ans">Ответ: ' + esc(ans) + '</div><ol>' +
+              t.solution_steps.map(function (s) {
+                return '<li>' + esc(s.label) + ': ' + esc(s.value) +
+                       (s.point ? ' <code>' + esc(s.point) + '</code>' : '') + '</li>';
+              }).join('') + '</ol>' +
+              '<div style="font-size:12px;color:#5a6470">Основание: ' +
+              t.normative_basis.map(function (b) { return esc(b.document + ', ' + b.point); }).join('; ') +
+              ' · seed ' + t.seed + '</div></div>';
+      out.insertAdjacentHTML('beforeend', html);
+    });
+  }
+
+  document.getElementById('checkCount').textContent = V.CHECKS.length;
+  document.getElementById('run').onclick = function () { run(500); };
+  document.getElementById('run5k').onclick = function () { run(5000); };
+  document.getElementById('samples').onclick = showSamples;
+  run(500);
+})();
+</script>
+</body>
+</html>
