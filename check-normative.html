@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Сверка нормативного ядра — ПОГСВ АСС</title>
+<style>
+  :root { color-scheme: light; }
+  body { font: 14px/1.5 "Segoe UI", Arial, sans-serif; margin: 0; padding: 24px 32px; background: #fff; color: #14181d; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 17px; margin: 32px 0 6px; padding-bottom: 4px; border-bottom: 2px solid #14181d; }
+  h3 { font-size: 14px; margin: 18px 0 6px; }
+  .sub { color: #5a6470; margin: 0 0 20px; }
+  .quote { border-left: 3px solid #c8ced6; padding: 6px 0 6px 12px; margin: 8px 0; color: #38414c; font-size: 13px; }
+  table { border-collapse: collapse; margin: 8px 0 14px; font-variant-numeric: tabular-nums; }
+  th, td { border: 1px solid #b8c0ca; padding: 3px 8px; text-align: right; }
+  th { background: #eef1f4; font-weight: 600; text-align: center; }
+  td.lbl, th.lbl { text-align: left; }
+  .src { font-size: 12px; color: #5a6470; margin: 2px 0 10px; }
+  .warn { background: #fff6e0; border-left: 3px solid #e0a020; padding: 8px 12px; margin: 10px 0; font-size: 13px; }
+  #tests { margin-top: 12px; }
+  #tests div { padding: 2px 0; font-family: Consolas, monospace; font-size: 12.5px; }
+  .pass { color: #1d7a3e; }
+  .fail { color: #c02020; font-weight: 700; }
+  .summary { font-size: 15px; font-weight: 700; padding: 10px 14px; margin: 12px 0; border-radius: 4px; }
+  .summary.ok { background: #e6f6ec; color: #1d7a3e; }
+  .summary.bad { background: #fdeaea; color: #c02020; }
+  @media print { body { padding: 0; } h2 { page-break-after: avoid; } table { page-break-inside: avoid; } }
+</style>
+</head>
+<body>
+
+<h1>Сверка нормативного ядра</h1>
+<p class="sub">Страница печатает всё, что загружено в <code>app/data/normative/</code>, — построчно сверяется с исходными документами. Ниже — автоматическая проверка граничных значений.</p>
+
+<div id="out"></div>
+
+<h2>Самопроверка границ</h2>
+<div id="tests"></div>
+
+<script src="app/data/normative/sources.js?v=1.7.0"></script>
+<script src="app/data/normative/ustav-251.js?v=1.7.0"></script>
+<script src="app/data/normative/fnp-520-app6.js?v=1.7.0"></script>
+<script src="app/data/normative/fnp-520-app7.js?v=1.7.0"></script>
+<script src="app/data/normative/apparatus.js?v=1.7.0"></script>
+<script>
+(function () {
+  'use strict';
+  var N = VGSCH.normative;
+  var out = document.getElementById('out');
+  function h(html) { out.insertAdjacentHTML('beforeend', html); }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  function num(v) { return String(v).replace('.', ','); }
+
+  /* ---------- Источники ---------- */
+  h('<h2>Источники</h2><table><tr><th class="lbl">Документ</th><th class="lbl">Редакция</th>' +
+    '<th class="lbl">Статус</th><th class="lbl">Сверен</th></tr>' +
+    Object.keys(N.SOURCES).map(function (k) {
+      var s = N.SOURCES[k];
+      var kind = { normative: 'нормативный', methodical: 'учебно-методический', educational: 'учебный диапазон' }[s.kind];
+      return '<tr><td class="lbl">' + esc(s.document) + '</td><td class="lbl">' + esc(s.revision) +
+             '</td><td class="lbl">' + kind + '</td><td class="lbl">' + s.checkedOn + '</td></tr>';
+    }).join('') + '</table>');
+
+  /* ---------- Устав 251 ---------- */
+  var U = N.ustav251;
+  h('<h2>Устав ВГСЧ (Приказ МЧС России № 251), п. 22</h2>');
+  h('<div class="quote">' + esc(U.quotes.reserve) + '</div>');
+  h('<div class="quote">' + esc(U.quotes.working) + '<br>— ' + esc(U.quotes.halfHalf) +
+    '<br>— ' + esc(U.quotes.thirdTwoThirds) + '</div>');
+  h('<div class="quote">' + esc(U.quotes.mechTransport) + '</div>');
+  h('<table><tr><th class="lbl">Величина</th><th>Значение</th></tr>' +
+    '<tr><td class="lbl">Резервный запас</td><td>' + U.RESERVE_PRESSURE_MPA + ' МПа</td></tr>' +
+    '<tr><td class="lbl">Рабочий запас</td><td>' + U.WORKING_RESERVE_MPA + ' МПа</td></tr></table>');
+  h('<h3>Распределение рабочего запаса по категориям участка</h3>' +
+    '<table><tr><th class="lbl">Категория</th><th>Вперёд</th><th>Обратно</th></tr>' +
+    [U.SLOPE_CATEGORY.HORIZONTAL, U.SLOPE_CATEGORY.UP, U.SLOPE_CATEGORY.DOWN_TO_10, U.SLOPE_CATEGORY.DOWN_OVER_10]
+      .map(function (c) {
+        var f = U.forwardShare(c);
+        var name = { horizontal: 'горизонтальная выработка', up: 'передвижение вверх',
+                     down_to_10: 'вниз, угол до 10° включительно', down_over_10: 'вниз, угол более 10°' }[c];
+        return '<tr><td class="lbl">' + name + '</td><td>' + f.forwardNum + '/' + f.forwardDen +
+               '</td><td>' + f.backNum + '/' + f.backDen + '</td></tr>';
+      }).join('') + '</table>');
+
+  /* ---------- ФНП 520, прил. 6 ---------- */
+  var A6 = N.fnp520app6;
+  h('<h2>ФНП № 520, приложение № 6 — температурный фактор</h2>');
+  h('<div class="quote">' + esc(A6.quotes.p11) + '</div>');
+  h('<h3>Таблица N 1 — ЗВТ с непригодной для дыхания рудничной атмосферой</h3>' +
+    '<table><tr><th>Температура, °C</th><th>На месте, мин</th><th>При передвижении, мин</th></tr>' +
+    A6.TABLE_1.map(function (r) {
+      return '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td><td>' + r[2] + '</td></tr>';
+    }).join('') + '</table>');
+  h('<div class="quote">' + esc(A6.quotes.p12) + '</div>');
+  h('<div class="quote">' + esc(A6.quotes.p13) + '</div>');
+  h('<div class="quote">' + esc(A6.quotes.p17) + '</div>');
+  h('<h3>Таблица N 2 — температура 0 °C и менее</h3>' +
+    '<table><tr><th class="lbl">Температура воздуха, °C</th><th>На месте, мин</th><th>При передвижении, мин</th></tr>' +
+    A6.TABLE_2.map(function (r) {
+      return '<tr><td class="lbl">от ' + r[0] + ' до ' + r[1] + '</td><td>' + r[2] + '</td><td>' + r[3] + '</td></tr>';
+    }).join('') + '</table>');
+  h('<div class="quote">' + esc(A6.quotes.p18) + '</div>');
+  h('<div class="quote">' + esc(A6.quotes.p19) + '</div>');
+  h('<div class="warn"><b>Неоднозначность в документе.</b> Диапазоны таблицы N 2 сформулированы как ' +
+    '«от 0 до −5», «от −5 до −10», «от −10 до −15», «от −15 до −20»: значения ' +
+    A6.TABLE_2_AMBIGUOUS.join(', ') + ' °C буквально принадлежат сразу двум строкам. ' +
+    'Нормативного правила разрешения нет, поэтому генератор такие значения не выдаёт, ' +
+    'а расчёт при них ведётся по более строгой (холодной) строке.</div>');
+
+  /* ---------- ФНП 520, прил. 7 ---------- */
+  var A7 = N.fnp520app7;
+  h('<h2>ФНП № 520, приложение № 7 — скорость передвижения</h2>');
+  h('<div class="quote">' + esc(A7.quotes.t1) + '</div>');
+  h('<h3>Таблица N 1 — Vп.в, м/мин</h3>');
+
+  [A7.ATM.BREATHABLE, A7.ATM.UNBREATHABLE].forEach(function (atm) {
+    var byWork = A7.TABLE_1[atm];
+    var rows = '<tr><th class="lbl">Выполняемая работа</th><th>Высота, м</th>' +
+               A7.ANGLES.map(function (a) { return '<th>' + a + '°</th>'; }).join('') + '</tr>';
+    Object.keys(byWork).forEach(function (w) {
+      byWork[w].forEach(function (row, i) {
+        rows += '<tr>' + (i === 0 ? '<td class="lbl" rowspan="' + A7.HEIGHTS.length + '">' + esc(w) + '</td>' : '') +
+                '<td>' + num(A7.HEIGHTS[i]) + '</td>' +
+                row.map(function (v) { return '<td>' + num(v) + '</td>'; }).join('') + '</tr>';
+      });
+    });
+    h('<p class="src"><b>В ' + atm + ' для дыхания рудничной атмосфере</b></p><table>' + rows + '</table>');
+  });
+
+  h('<div class="quote">' + esc(A7.quotes.t2) + '</div>');
+  h('<h3>Таблица N 2 — коэффициент задымлённости k₃</h3>' +
+    '<table><tr><th class="lbl">Расстояние видимости, м</th>' +
+    A7.TABLE_2.map(function (r) { return '<th>' + esc(r.label) + '</th>'; }).join('') + '</tr>' +
+    '<tr><td class="lbl">Коэффициент задымлённости k₃</td>' +
+    A7.TABLE_2.map(function (r) { return '<td>' + num(r.k3) + '</td>'; }).join('') + '</tr></table>');
+  h('<div class="quote">' + esc(A7.quotes.k3initial) + '</div>');
+
+  /* ---------- Аппараты ---------- */
+  h('<h2>Дыхательные аппараты</h2>');
+  if (!N.apparatus.isAvailable()) {
+    h('<div class="warn"><b>Данных нет.</b> Файл <code>app/data/normative/apparatus.js</code> пуст. ' +
+      'До внесения характеристик из руководства по эксплуатации задачи типа T11 ' +
+      '(время защитного действия) не генерируются.</div>');
+  } else {
+    h('<table><tr><th class="lbl">Модель</th><th class="lbl">Тип кислорода</th><th>Номинальное ВЗД, мин</th>' +
+      '<th>Рабочее (75 %), мин</th><th class="lbl">Источник</th></tr>' +
+      N.apparatus.list.map(function (a) {
+        var w = N.apparatus.workingProtectiveTime(a.id);
+        return '<tr><td class="lbl">' + esc(a.model) + '</td><td class="lbl">' + esc(a.oxygenType) +
+               '</td><td>' + a.nominalProtectiveTimeMin + '</td><td>' + w.minutes +
+               '</td><td class="lbl">' + esc(a.source) + '</td></tr>';
+      }).join('') + '</table>');
+  }
+
+  /* ================= Самопроверка ================= */
+  var tests = document.getElementById('tests');
+  var passed = 0, failed = 0;
+
+  function check(name, fn) {
+    var ok = false, note = '';
+    try { note = fn(); ok = true; } catch (e) { note = e.message; ok = false; }
+    if (ok) { passed++; } else { failed++; }
+    tests.insertAdjacentHTML('beforeend',
+      '<div class="' + (ok ? 'pass' : 'fail') + '">' + (ok ? '✓' : '✗') + ' ' + esc(name) +
+      (note ? ' — ' + esc(note) : '') + '</div>');
+  }
+  function eq(actual, expected, what) {
+    if (actual !== expected) throw new Error((what || '') + ' ожидалось ' + expected + ', получено ' + actual);
+    return (what ? what + ' = ' : '') + actual;
+  }
+
+  check('Угол ровно 10° вниз → «до 10° включительно»', function () {
+    return eq(U.slopeCategory(10, 'спуск'), U.SLOPE_CATEGORY.DOWN_TO_10);
+  });
+  check('Угол 10,1° вниз → «более 10°»', function () {
+    return eq(U.slopeCategory(10.1, 'спуск'), U.SLOPE_CATEGORY.DOWN_OVER_10);
+  });
+  check('Угол 10° вверх → категория подъёма, а не спуска', function () {
+    return eq(U.slopeCategory(10, 'подъём'), U.SLOPE_CATEGORY.UP);
+  });
+  check('Ни один угол не попадает в две категории сразу', function () {
+    var cats = {};
+    for (var a = 0; a <= 70; a += 0.1) {
+      var d = Math.round(a * 10) / 10;
+      var c = U.slopeCategory(d, d === 0 ? 'горизонталь' : 'спуск');
+      if (!c) throw new Error('нет категории для ' + d + '°');
+      cats[c] = true;
+    }
+    return 'покрыты категории: ' + Object.keys(cats).join(', ');
+  });
+  check('Спуск более 10° на маршруте задаёт правило 1/3–2/3 всему маршруту', function () {
+    var f = U.forwardShare(U.routeCategory([
+      { direction: 'туда', slopeDeg: 0, incline: 'горизонталь' },
+      { direction: 'туда', slopeDeg: 15, incline: 'спуск' }
+    ]));
+    return eq(f.forwardDen, 3, 'знаменатель доли «вперёд»');
+  });
+
+  check('ЗВТ 27 °C на месте = 210 мин', function () {
+    return eq(A6.highTempAllowance(27, 'на месте').minutes, 210);
+  });
+  check('ЗВТ 40 °C при передвижении = 14 мин', function () {
+    return eq(A6.highTempAllowance(40, 'передвижение').minutes, 14);
+  });
+  check('41 °C → только спасение людей, не более 10 мин', function () {
+    var r = A6.highTempAllowance(41, 'на месте');
+    if (!r.rescueOnly) throw new Error('не поднят флаг rescueOnly');
+    return eq(r.minutes, 10);
+  });
+  check('50 °C → 10 мин; 51 °C → работы не предусмотрены', function () {
+    eq(A6.highTempAllowance(50, 'на месте').minutes, 10, '50 °C');
+    return eq(A6.highTempAllowance(51, 'на месте').allowed, false, '51 °C allowed');
+  });
+  check('Низкая температура 0 °C → строка «от 0 до −5»', function () {
+    return eq(A6.lowTempAllowance(0, 'на месте').minutes, 230);
+  });
+  check('Минус 20 °C ещё допустимо (запрет — ниже минус 20)', function () {
+    var r = A6.lowTempAllowance(-20, 'передвижение');
+    if (!r.allowed) throw new Error('минус 20 °C ошибочно запрещено');
+    return eq(r.minutes, 100);
+  });
+  check('Минус 20,1 °C запрещено по п. 19', function () {
+    return eq(A6.lowTempAllowance(-20.1, 'на месте').allowed, false);
+  });
+  check('Стыковые −5/−10/−15 °C → более строгая строка + флаг неоднозначности', function () {
+    var r = A6.lowTempAllowance(-5, 'на месте');
+    if (!r.ambiguousBoundary) throw new Error('не поднят флаг ambiguousBoundary');
+    return eq(r.minutes, 180, '−5 °C на месте');
+  });
+  check('Каждая температура от −20 до 0 покрыта ровно одной строкой', function () {
+    for (var t = -20; t <= 0; t += 0.5) {
+      var v = Math.round(t * 10) / 10;
+      var r = A6.lowTempAllowance(v, 'на месте');
+      if (!r.allowed || r.minutes === null) throw new Error(v + ' °C не покрыто');
+    }
+    return '41 значение проверено';
+  });
+  check('При разных температурах маршрута берётся минимальная (п. 18)', function () {
+    return eq(A6.governingTemperature([-3, -12, -7], 'низкая'), -12);
+  });
+  check('Для ЗВТ берётся максимальная замеренная (п. 11)', function () {
+    return eq(A6.governingTemperature([31, 38, 29], 'высокая'), 38);
+  });
+
+  check('Vп.в: разведка вниз, 1,2 м, 20° (пригодная) = 15,5 м/мин', function () {
+    return eq(A7.fullVisibilitySpeed(A7.ATM.BREATHABLE, A7.WORK.RECON_DOWN, 1.2, 20).value, 15.5);
+  });
+  check('Vп.в: транспортировка вверх, 2,0 м, 70° (непригодная) = 1,5 м/мин', function () {
+    return eq(A7.fullVisibilitySpeed(A7.ATM.UNBREATHABLE, A7.WORK.VICTIM_UP, 2.0, 70).value, 1.5);
+  });
+  check('На угле 0° скорость «вниз» и «вверх» совпадает (горизонталь)', function () {
+    var d = A7.fullVisibilitySpeed(A7.ATM.UNBREATHABLE, A7.WORK.RECON_DOWN, 1.4, 0).value;
+    var u = A7.fullVisibilitySpeed(A7.ATM.UNBREATHABLE, A7.WORK.RECON_UP, 1.4, 0).value;
+    return eq(d, u, 'обе скорости');
+  });
+  check('Ликвидация аварии отсутствует в непригодной атмосфере → отказ, а не подстановка', function () {
+    try {
+      A7.fullVisibilitySpeed(A7.ATM.UNBREATHABLE, A7.WORK.LIQUID_DOWN, 1.0, 10);
+    } catch (e) { return 'отказ получен'; }
+    throw new Error('значение вернулось вместо отказа');
+  });
+  check('Высота вне таблицы → отказ, интерполяции нет', function () {
+    try { A7.fullVisibilitySpeed(A7.ATM.BREATHABLE, A7.WORK.RECON_DOWN, 1.5, 10); }
+    catch (e) { return 'отказ получен'; }
+    throw new Error('значение вернулось вместо отказа');
+  });
+  check('Полнота таблицы N 1: все ячейки заполнены и положительны', function () {
+    var n = 0;
+    [A7.ATM.BREATHABLE, A7.ATM.UNBREATHABLE].forEach(function (atm) {
+      var byWork = A7.TABLE_1[atm];
+      Object.keys(byWork).forEach(function (w) {
+        if (byWork[w].length !== A7.HEIGHTS.length) throw new Error(w + ': строк ' + byWork[w].length);
+        byWork[w].forEach(function (row, i) {
+          if (row.length !== A7.ANGLES.length) throw new Error(w + ', высота ' + A7.HEIGHTS[i] + ': столбцов ' + row.length);
+          row.forEach(function (v) { if (!(v > 0)) throw new Error(w + ': значение ' + v); n++; });
+        });
+      });
+    });
+    return n + ' ячеек';
+  });
+  check('Скорость монотонно убывает с ростом угла в каждой строке', function () {
+    var n = 0;
+    [A7.ATM.BREATHABLE, A7.ATM.UNBREATHABLE].forEach(function (atm) {
+      var byWork = A7.TABLE_1[atm];
+      Object.keys(byWork).forEach(function (w) {
+        byWork[w].forEach(function (row, i) {
+          for (var c = 1; c < row.length; c++) {
+            if (row[c] > row[c - 1]) {
+              throw new Error(w + ', высота ' + A7.HEIGHTS[i] + ' м: при ' + A7.ANGLES[c] + '° скорость ' +
+                              row[c] + ' больше, чем при ' + A7.ANGLES[c - 1] + '° (' + row[c - 1] + ')');
+            }
+            n++;
+          }
+        });
+      });
+    });
+    return n + ' пар сравнений';
+  });
+  check('k₃: 4,9 м → 2; 5 м → 1,43; 10 м → 1,43; 10,1 м → 1', function () {
+    eq(A7.smokeCoefficient(4.9).value, 2, '4,9 м');
+    eq(A7.smokeCoefficient(5).value, 1.43, '5 м');
+    eq(A7.smokeCoefficient(10).value, 1.43, '10 м');
+    return eq(A7.smokeCoefficient(10.1).value, 1, '10,1 м');
+  });
+  check('V₃ = Vп.в / k₃', function () {
+    var v = A7.fullVisibilitySpeed(A7.ATM.UNBREATHABLE, A7.WORK.RECON_DOWN, 1.0, 0).value; // 19,0
+    return eq(Math.round(A7.smokeSpeed(v, 1.43) * 100) / 100, 13.29, 'V₃ при k₃ = 1,43');
+  });
+
+  tests.insertAdjacentHTML('afterbegin',
+    '<div class="summary ' + (failed ? 'bad' : 'ok') + '">' +
+    (failed ? 'ОШИБОК: ' + failed + ' из ' + (passed + failed) : 'Все проверки пройдены: ' + passed) +
+    '</div>');
+})();
+</script>
+</body>
+</html>
