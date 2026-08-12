@@ -113,7 +113,9 @@
           }).join('') +
         '</div>' +
         '<div id="verdict"></div>' +
-        VGSCH.feedback.button() +
+        /* «Далее» идёт сразу за разбором ответа, а обращение об ошибке —
+           уже под ним: иначе главная кнопка уезжала вниз и до неё
+           приходилось прокручивать экран. */
         '<div class="actions">' +
           '<button data-act="prev"' + (run.index === 0 ? ' disabled' : '') + '>' +
             ui.I.prev + 'Назад</button>' +
@@ -121,6 +123,7 @@
           '<button class="primary" id="next" disabled>' +
             (last ? 'Завершить' : 'Далее') + ui.I.next + '</button>' +
         '</div>' +
+        VGSCH.feedback.button() +
       '</div>' +
       ui.tabbar('tests'));
 

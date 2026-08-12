@@ -29,12 +29,49 @@
    * Иначе делегированные слушатели накапливались бы на постоянном #app, и клики
    * на новом экране перехватывались бы обработчиками предыдущего.
    */
-  function paint(app, html) {
+  /**
+   * @param opts.keepScroll не поднимать страницу наверх. Нужно там, где
+   *        перерисовывается часть экрана, а не экран целиком: при листании
+   *        шагов решения шапка и разбор ответа остаются на месте, и прыжок
+   *        наверх только сбивает.
+   */
+  function paint(app, html, opts) {
+    var keep = opts && opts.keepScroll;
+    var y = keep ? (window.pageYOffset || document.documentElement.scrollTop || 0) : 0;
+
     clear(app);
     var view = document.createElement('div');
     view.innerHTML = html;
     app.appendChild(view);
+
+    if (keep) {
+      /* Новый экран может оказаться короче прежнего — тогда прокрутка
+         обрезается до его высоты, и страница не «повисает» в пустоте. */
+      var max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      window.scrollTo(0, Math.min(y, max));
+    } else {
+      toTop();
+    }
     return view;
+  }
+
+  /**
+   * Прокрутка к началу экрана.
+   *
+   * Вызывается при каждой перерисовке: после «Далее» или «Назад» страница
+   * оставалась прокрученной там же, где её бросили, и следующий вопрос
+   * открывался с середины — приходилось листать вверх вручную.
+   *
+   * behavior: 'auto' намеренно: плавная прокрутка на длинном разборе задачи
+   * тянется заметно дольше, чем нужно, и выглядит как подвисание.
+   */
+  function toTop() {
+    try {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    } catch (e) {
+      /* Старые браузеры не понимают объект настроек. */
+      window.scrollTo(0, 0);
+    }
   }
 
   /** Делегирование клика по селектору внутри контейнера экрана. */
@@ -205,7 +242,7 @@
   }
 
   VGSCH.ui = {
-    esc: esc, clear: clear, on: on, paint: paint, asset: asset,
+    esc: esc, clear: clear, on: on, paint: paint, asset: asset, toTop: toTop,
     clock: clock, dateTime: dateTime,
     countdown: countdown, stopwatch: stopwatch,
     I: I, ACCENT: ACCENT, ACCENT_BG: ACCENT_BG,

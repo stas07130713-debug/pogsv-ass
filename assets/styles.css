@@ -64,7 +64,10 @@ body { background: transparent; }
   min-height: 100vh;
   min-height: 100dvh;
   max-width: 1080px; margin: 0 auto;
-  padding: 18px 16px calc(110px + env(safe-area-inset-bottom, 0px));
+  /* Запас снизу — высота нижней панели (57 px) плюс небольшой воздух.
+     Стояло 110 px, и полсотни пикселей пустоты гнали страницу в прокрутку
+     на ноутбучных экранах. */
+  padding: 14px 16px calc(76px + env(safe-area-inset-bottom, 0px));
 }
 /* На главном экране нижней панели нет — запас под неё не нужен. */
 #app[data-screen="start"] { padding-bottom: 24px; }
@@ -105,9 +108,12 @@ h1, h2, h3, h4 { margin: 0; font-weight: 700; }
 
 /* ============================================================ шапка ====== */
 
+/* Отступы по всему рабочему экрану подобраны так, чтобы вопрос с четырьмя
+   вариантами, разбором и кнопками помещался на экран ноутбука целиком:
+   прокрутка ради одной кнопки «Далее» раздражает сильнее, чем плотная вёрстка. */
 .appbar {
   display: flex; align-items: center; gap: 14px;
-  padding: 14px 18px; margin-bottom: 16px;
+  padding: 11px 18px; margin-bottom: 12px;
   background: rgba(15, 21, 30, .78); border: 1px solid var(--line); border-radius: var(--radius);
   -webkit-backdrop-filter: blur(14px) saturate(1.1);
           backdrop-filter: blur(14px) saturate(1.1);
@@ -136,7 +142,7 @@ h1, h2, h3, h4 { margin: 0; font-weight: 700; }
 
 /* ========================================================== прогресс ===== */
 
-.progress { margin-bottom: 16px; }
+.progress { margin-bottom: 12px; }
 .progress-label { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-dim); margin-bottom: 7px; }
 .progress-track { height: 5px; border-radius: 999px; background: var(--panel-2); overflow: hidden; }
 .progress-fill { height: 100%; border-radius: 999px; background: var(--accent, var(--tests)); transition: width .3s ease; }
@@ -147,7 +153,7 @@ h1, h2, h3, h4 { margin: 0; font-weight: 700; }
    по краям и между блоками, но текст на нём не теряется. */
 .panel {
   background: rgba(15, 21, 30, .78); border: 1px solid var(--line);
-  border-radius: var(--radius); padding: 20px 22px; margin-bottom: 14px;
+  border-radius: var(--radius); padding: 16px 20px; margin-bottom: 12px;
   -webkit-backdrop-filter: blur(14px) saturate(1.1);
           backdrop-filter: blur(14px) saturate(1.1);
 }
@@ -305,34 +311,39 @@ button.primary { background: var(--accent, var(--tests)); border-color: transpar
 button.primary:hover:not(:disabled) { filter: brightness(1.1); }
 button.ok { background: var(--ok); border-color: transparent; color: #fff; }
 
-.actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 20px; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
 .actions .spacer { flex: 1 1 auto; }
 
 /* ========================================================== вопросы ====== */
 
-.question { font-size: 18px; line-height: 1.45; margin-bottom: 18px; }
+.question { font-size: 17.5px; line-height: 1.4; margin-bottom: 14px; }
 .qbox {
   background: var(--panel-2); border: 1px solid var(--line);
-  border-radius: var(--radius-sm); padding: 16px 18px; margin-bottom: 16px;
+  border-radius: var(--radius-sm); padding: 13px 16px; margin-bottom: 13px;
 }
-.options { display: grid; gap: 10px; }
+.options { display: grid; gap: 8px; }
 /* Сетка с фиксированными колонками: кружок, буква, текст, отметка.
    Текст всех вариантов начинается с одной вертикали независимо от длины. */
 .option {
   display: grid;
   grid-template-columns: 20px 20px minmax(0, 1fr) 22px;
   gap: 12px; align-items: start; text-align: left; width: 100%;
-  padding: 13px 16px; font-weight: 400; line-height: 1.45;
+  padding: 11px 15px; font-weight: 400; line-height: 1.45;
   background: rgba(24, 32, 44, .72); border: 1px solid var(--line);
   border-radius: var(--radius-sm);
 }
 .option > span:nth-child(3) { min-width: 0; overflow-wrap: anywhere; }
+/* Кружок и отметка центруются по ПЕРВОЙ строке текста, а не по её верху.
+   Отступ считается от высоты строки (1.45em), поэтому выравнивание держится
+   при любом размере шрифта — и на телефоне, и на мониторе. Раньше здесь
+   стояли подобранные на глаз 1–2 px, и значки съезжали относительно букв. */
 .option .marker {
-  width: 20px; height: 20px; margin-top: 2px; border-radius: 50%;
+  width: 20px; height: 20px; border-radius: 50%;
+  margin-top: calc((1.45em - 20px) / 2);
   border: 2px solid var(--text-mute); display: grid; place-items: center;
 }
 .option .marker::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: transparent; }
-.option .let { color: var(--text-dim); font-weight: 600; margin-top: 1px; }
+.option .let { color: var(--text-dim); font-weight: 600; }
 .option.is-picked { border-color: var(--accent, var(--tests)); }
 .option.is-picked .marker { border-color: var(--accent, var(--tests)); }
 .option.is-picked .marker::after { background: var(--accent, var(--tests)); }
@@ -342,14 +353,14 @@ button.ok { background: var(--ok); border-color: transparent; color: #fff; }
 .option.is-wrong { border-color: var(--bad); background: rgba(224, 82, 79, .13); }
 .option.is-wrong .marker { border-color: var(--bad); }
 .option.is-wrong .marker::after { background: var(--bad); }
-.option .tick { grid-column: 4; margin-top: 1px; }
+.option .tick { grid-column: 4; margin-top: calc((1.45em - 20px) / 2); }
 .option:disabled { cursor: default; opacity: 1; }
 
 /* --------------------------------------------------------- вердикт ------ */
 
 .verdict {
-  display: flex; gap: 14px; align-items: flex-start;
-  margin-top: 16px; padding: 15px 17px; border-radius: var(--radius-sm);
+  display: flex; gap: 13px; align-items: flex-start;
+  margin-top: 13px; padding: 11px 14px; border-radius: var(--radius-sm);
   border: 1px solid;
 }
 .verdict.ok  { background: rgba(39, 174, 96, .10); border-color: rgba(39, 174, 96, .45); }
@@ -362,13 +373,16 @@ button.ok { background: var(--ok); border-color: transparent; color: #fff; }
 .verdict.bad b { color: #f28e8b; }
 .verdict .txt { font-size: 14px; color: var(--text-dim); }
 .verdict .src { display: block; margin-top: 7px; font-size: 12.5px; color: var(--text-mute); }
-/* Снимок показывается целиком. Ширина задана, высота — своя у каждого кадра
-   (у «неверно» фигура вытянутее, чем у «верно»), поэтому никакого max-height:
-   любое ограничение по высоте здесь снова срезало бы каску или руку. */
-.verdict { align-items: stretch; min-height: 132px; }
+/* Снимок показывается целиком: высота задаётся им, ширина подстраивается.
+   Так рамка ровно облегает фигуру — раньше стояла фиксированная ширина
+   и min-height, из-за чего под коротким текстом оставалась пустая полоса
+   и короткие задачи всё равно приходилось прокручивать.
+   Ограничение по высоте — на сам снимок, а не на блок: обрезать каску
+   или поднятую руку нельзя, поэтому object-fit: contain. */
+.verdict { align-items: stretch; }
 .verdict-photo {
-  width: 112px; flex: none; align-self: center;
-  height: auto;
+  flex: none; align-self: center;
+  height: 104px; width: auto; max-width: 104px;
   object-fit: contain; object-position: center;
   border-radius: var(--radius-sm);
 }
@@ -397,13 +411,17 @@ button.ok { background: var(--ok); border-color: transparent; color: #fff; }
 
 .solve { display: grid; grid-template-columns: 210px 1fr; gap: 16px; margin-top: 16px; }
 .solve-nav { display: grid; gap: 6px; align-content: start; }
+/* Сетка вместо flex: подписи всех шагов начинаются с одной вертикали,
+   даже когда номер однозначный, а название переносится на две строки. */
 .solve-nav button {
-  display: flex; gap: 10px; align-items: flex-start; text-align: left; width: 100%;
-  padding: 10px 12px; font-size: 13px; font-weight: 500; line-height: 1.3;
+  display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px;
+  align-items: start; text-align: left; width: 100%;
+  padding: 10px 12px; font-size: 13px; font-weight: 500; line-height: 1.45;
   background: var(--panel-2); border: 1px solid transparent;
 }
 .solve-nav button .n {
-  flex: none; width: 21px; height: 21px; border-radius: 50%;
+  width: 22px; height: 22px; border-radius: 50%;
+  margin-top: calc((1.45em - 22px) / 2);
   background: var(--panel-3); color: var(--text-dim);
   display: grid; place-items: center; font-size: 11.5px; font-weight: 700;
 }
@@ -534,20 +552,32 @@ button.ok { background: var(--ok); border-color: transparent; color: #fff; }
   border-radius: 4px; padding: 24px 26px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
 }
-.protocol h3 { font-size: 15px; margin-bottom: 14px; letter-spacing: .5px; }
-.protocol dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0 0 16px; font-size: 14px; }
+.protocol h3 { font-size: 14px; margin-bottom: 11px; letter-spacing: .5px; }
+.protocol h3.h-errors { margin-top: 18px; }
+.protocol dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; margin: 0 0 14px; font-size: 13px; }
 .protocol dt { color: #5d6570; }
 .protocol dd { margin: 0; font-weight: 600; }
 /* Фиксированная раскладка и перенос по буквам: иначе длинные вопросы
    растягивают таблицу за пределы экрана телефона. */
-.protocol table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-.protocol th, .protocol td { overflow-wrap: anywhere; hyphens: auto; }
-.protocol th, .protocol td { border-bottom: 1px solid #cdc5b5; padding: 7px 4px; text-align: left; font-size: 14px; }
+.protocol table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 4px; }
+.protocol th, .protocol td { overflow-wrap: anywhere; hyphens: auto; vertical-align: top; }
+.protocol th, .protocol td { border-bottom: 1px solid #cdc5b5; padding: 6px 4px; text-align: left; font-size: 13px; }
 .protocol th { color: #5d6570; font-weight: 500; }
+.protocol th.r { text-align: right; }
 .protocol td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
 .protocol tr.total td, .protocol tr.total th { border-top: 2px solid #a89d88; border-bottom: none; font-weight: 700; }
 .protocol .accent { color: #c25a12; }
-.protocol .sign { margin-top: 30px; display: flex; justify-content: space-between; gap: 20px; font-size: 12.5px; color: #4c545e; }
+.protocol .verdict-line { margin: 10px 0 0; font-weight: 700; }
+
+/* Столбцы таблицы ошибок заданы явно: при автоподборе номер занимал
+   четверть ширины, а на текст вопроса не оставалось места. */
+.protocol .t-errors .c-n { width: 34px; }
+.protocol .t-errors .c-q { width: auto; }
+.protocol .t-errors .c-a { width: 33%; }
+/* Пункт НПА — строкой под вопросом, отдельного столбца больше нет. */
+.protocol .t-errors .src { display: block; margin-top: 3px; font-size: 11px; color: #6b7480; }
+
+.protocol .sign { margin-top: 26px; display: flex; justify-content: space-between; gap: 20px; font-size: 12px; color: #4c545e; }
 
 /* ================================================== нижняя навигация ==== */
 
@@ -596,13 +626,14 @@ button.ok { background: var(--ok); border-color: transparent; color: #fff; }
   color: var(--text-mute); margin-bottom: 4px; padding: 0 2px;
 }
 .study-nav button {
-  display: grid; grid-template-columns: 21px minmax(0, 1fr); gap: 10px;
+  display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px;
   align-items: start; text-align: left; width: 100%;
-  padding: 10px 13px; font-size: 13.5px; font-weight: 500; line-height: 1.35;
+  padding: 10px 13px; font-size: 13.5px; font-weight: 500; line-height: 1.45;
   background: var(--panel-2); border: 1px solid transparent;
 }
 .study-nav button .n {
-  width: 21px; height: 21px; border-radius: 50%;
+  width: 22px; height: 22px; border-radius: 50%;
+  margin-top: calc((1.45em - 22px) / 2);
   background: var(--panel-3); color: var(--text-dim);
   display: grid; place-items: center; font-size: 11.5px; font-weight: 700;
 }
@@ -618,7 +649,7 @@ button.ok { background: var(--ok); border-color: transparent; color: #fff; }
 
 /* Кнопка под вопросом и под задачей. Заметная, но не спорящая с «Далее»:
    приглушённый янтарь, подпись второй строкой — что именно сюда писать. */
-.report-row { display: flex; margin-top: 16px; }
+.report-row { display: flex; margin-top: 12px; }
 .report-btn {
   display: inline-flex; align-items: center; gap: 11px;
   padding: 9px 16px 9px 11px; text-align: left;
@@ -807,18 +838,11 @@ body.is-modal { overflow: hidden; }
 }
 
 @media (max-width: 620px) {
-  #app { padding: 12px 12px 100px; }
+  #app { padding: 12px 12px calc(76px + env(safe-area-inset-bottom, 0px)); }
   .start { padding: 18px 14px; }
   /* На телефоне колонка в 60 % не вмещает слово «ГОРНОСПАСАТЕЛЕЙ»: отдаём
-     заголовку всю ширину, а снимок уходит под текст с плотной вуалью. */
+     заголовку всю ширину. */
   .start-head { max-width: none; }
-  .start-veil {
-    background:
-      linear-gradient(180deg,
-        rgba(5, 8, 12, .82) 0%,
-        rgba(5, 8, 12, .90) 45%,
-        rgba(5, 8, 12, .94) 100%);
-  }
   .start h1 { font-size: 20px; }
   .start .unit { font-size: 23px; }
   .brand img { height: 32px; }
@@ -841,12 +865,18 @@ body.is-modal { overflow: hidden; }
   .review-item .line .k { min-width: 0; }
 
   /* Протокол на телефоне: подписи над значениями, таблицы мельче. */
-  .protocol { padding: 16px 14px; }
-  .protocol dl { grid-template-columns: 1fr; gap: 0 0; }
-  .protocol dt { margin-top: 8px; font-size: 12px; }
-  .protocol dd { font-size: 14px; }
-  .protocol th, .protocol td { padding: 6px 3px; font-size: 12.5px; }
-  .protocol .sign { flex-direction: column; gap: 14px; }
+  /* Протокол на телефоне: подписи над значениями в две колонки,
+     таблицы мельче, столбец с ответом уже — вопросу нужно место. */
+  .protocol { padding: 15px 12px; }
+  .protocol dl { grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 12px; }
+  .protocol dt { font-size: 12px; }
+  .protocol dd { font-size: 12.5px; }
+  .protocol h3 { font-size: 13px; }
+  .protocol th, .protocol td { padding: 5px 3px; font-size: 11.5px; }
+  .protocol .t-errors .c-n { width: 26px; }
+  .protocol .t-errors .c-a { width: 38%; }
+  .protocol .t-errors .src { font-size: 10px; }
+  .protocol .sign { flex-direction: column; gap: 14px; font-size: 11.5px; }
 
   /* Итоговые кольца и подписи вкладок компактнее. */
   .donut { width: 148px; height: 148px; }
@@ -861,9 +891,9 @@ body.is-modal { overflow: hidden; }
   .report-btn { width: 100%; border-radius: var(--radius-sm); }
   .report-s { display: none; }
 
-  /* Вердикт: снимок уже, чтобы тексту оставалась читаемая колонка. */
-  .verdict { gap: 11px; padding: 13px 13px; }
-  .verdict-photo { width: 84px; }
+  /* Вердикт: снимок ниже, чтобы тексту оставалась читаемая колонка. */
+  .verdict { gap: 11px; padding: 11px 12px; }
+  .verdict-photo { height: 84px; max-width: 84px; }
 
   /* Ряды кнопок в подвале экранов: на узком экране в строку они не влезают,
      и «Далее» уезжала за край. Раскладываем в колонку, главная — сверху. */
@@ -871,6 +901,39 @@ body.is-modal { overflow: hidden; }
   .actions .spacer { display: none; }
   .actions button { flex: 1 1 100%; justify-content: center; }
   .actions button.primary, .actions button.ok { order: -1; }
+}
+
+/* ---- Главный экран на телефоне, вертикально --------------------------- */
+
+/* Общий кадр выработки на узком экране бесполезен: при заполнении по ширине
+   от него остаётся середина туннеля, а спасатель уезжает за край. Поэтому
+   здесь свой снимок — тот же кадр, обрезанный вокруг фигуры, — и лежит он
+   полосой сверху, а не за всей страницей.
+
+   Высота полосы задана в vw, а не в vh: она равна ширине экрана, умноженной
+   на пропорции кадра (600×420 → 70 %). Поэтому в тех же vw задана и вуаль —
+   переход из снимка в тёмный фон совпадает с нижним краем полосы на любом
+   телефоне, от 320 px до планшета. */
+@media (max-width: 620px) and (orientation: portrait) {
+  body[data-screen="start"]::before {
+    background-image: url("img/bg-start-mobile.jpg");
+    background-size: 100% auto;
+    background-position: top center;
+    background-repeat: no-repeat;
+  }
+  body[data-screen="start"]::after {
+    background: linear-gradient(180deg,
+      rgba(5, 8, 12, 0)    0,
+      rgba(5, 8, 12, .04) 34vw,
+      rgba(5, 8, 12, .55) 58vw,
+      rgba(7, 11, 17, .95) 68vw,
+      rgba(7, 11, 17, 1)   74vw);
+  }
+  /* Вертикальная вуаль теперь целиком в ::after — этот слой лишний. */
+  .start-veil { display: none; }
+
+  /* Содержимое начинается под полосой со снимком. */
+  .start { padding-top: 72vw; }
 }
 
 /* Сенсорный экран любой ширины — телефон, планшет, панель в учебном классе.

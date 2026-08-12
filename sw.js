@@ -24,6 +24,7 @@ var PRECACHE = [
   './manifest.webmanifest',
   './assets/styles.css',
   './assets/img/bg-start.jpg',
+  './assets/img/bg-start-mobile.jpg',
   './assets/img/bg-tests.jpg',
   './assets/img/bg-tasks.jpg',
   './assets/img/bg-exam.jpg',
@@ -32,8 +33,8 @@ var PRECACHE = [
   './assets/img/rescuer-wrong.png',
   './assets/img/report-rescuer.png',
   './assets/img/icon-192.png',
-  './assets/img/icon-512.png',
-  './assets/img/icon-maskable.png'
+  './assets/img/icon-512.jpg',
+  './assets/img/icon-maskable.jpg'
 ];
 
 self.addEventListener('install', function (e) {
