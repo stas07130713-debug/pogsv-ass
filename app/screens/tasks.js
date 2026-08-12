@@ -120,12 +120,14 @@
           ? '<div class="scheme-wrap">' + VGSCH.engine.scheme.render(t) + '</div>' : '') +
         renderInputs(t) +
         '<div id="answerArea">' + renderAnswerInput(t) + '</div>' +
-        VGSCH.feedback.button() +
+        /* Кнопки идут раньше обращения об ошибке: главное действие не должно
+           уезжать вниз за второстепенной кнопкой. */
         '<div class="actions">' +
           '<button data-act="picker">' + ui.I.prev + 'Назад</button>' +
           '<div class="spacer"></div>' +
           '<button id="check" class="primary" style="--accent:var(--tests)">Проверить</button>' +
         '</div>' +
+        VGSCH.feedback.button() +
       '</div>' +
       ui.tabbar('tasks'));
 
@@ -247,7 +249,14 @@
 
   /* ---------------------------------------------- пошаговое решение (06) - */
 
-  function renderSolution(root, stepIndex) {
+  /**
+   * @param keepScroll true при переходе между шагами одного решения:
+   *        шапка и разбор ответа на месте, меняется только тело шага —
+   *        поднимать страницу наверх не нужно, это только сбивает чтение.
+   *        При первом открытии решения (после «Проверить») прокрутка
+   *        сбрасывается, потому что экран меняется целиком.
+   */
+  function renderSolution(root, stepIndex, keepScroll) {
     var t = current.task;
     var steps = t.solution_steps;
     var s = steps[stepIndex];
@@ -255,7 +264,7 @@
       ? units.fmt(t.answer.value, t.answer.decimals) + ' ' + t.answer.unit
       : t.answer.options.filter(function (o) { return o.value === t.answer.value; })[0].label;
 
-    var v = ui.paint(root,
+    var v = ui.paint(root, (
       ui.appbar({ mode: 'tasks', title: 'Решение задачи', backArrow: true }) +
       ui.progress(stepIndex + 1, steps.length,
                   'Шаг ' + (stepIndex + 1) + ' из ' + steps.length, 'var(--tasks)') +
@@ -287,8 +296,6 @@
           t.normative_basis.map(function (b) { return ui.esc(b.document + ', ' + b.point); }).join('; ') +
         '</div>' +
 
-        VGSCH.feedback.button() +
-
         '<div class="actions">' +
           '<button data-act="prevStep"' + (stepIndex === 0 ? ' disabled' : '') + '>' +
             ui.I.prev + 'Назад</button>' +
@@ -297,14 +304,16 @@
             ? '<button class="primary" style="--accent:var(--tests)" data-act="nextStep">Далее' + ui.I.next + '</button>'
             : '<button class="primary" style="--accent:var(--tests)" data-act="nextTask">Следующая задача' + ui.I.next + '</button>') +
         '</div>' +
+
+        VGSCH.feedback.button() +
       '</div>' +
-      ui.tabbar('tasks'));
+      ui.tabbar('tasks')), { keepScroll: !!keepScroll });
 
     ui.wireNav(v);
     VGSCH.feedback.wire(v, function () { return taskContext(t, 'Задачи — решение'); });
-    ui.on(v, '[data-step]', function (b) { renderSolution(root, parseInt(b.dataset.step, 10)); });
-    ui.on(v, '[data-act="prevStep"]', function () { renderSolution(root, stepIndex - 1); });
-    ui.on(v, '[data-act="nextStep"]', function () { renderSolution(root, stepIndex + 1); });
+    ui.on(v, '[data-step]', function (b) { renderSolution(root, parseInt(b.dataset.step, 10), true); });
+    ui.on(v, '[data-act="prevStep"]', function () { renderSolution(root, stepIndex - 1, true); });
+    ui.on(v, '[data-act="nextStep"]', function () { renderSolution(root, stepIndex + 1, true); });
     ui.on(v, '[data-act="nextTask"]', function () { nextTask(root); });
   }
 

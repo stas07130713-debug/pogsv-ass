@@ -10,6 +10,11 @@
     var T = VGSCH.data.taskTypes;
     var st = VGSCH.state.data;
 
+    /* Списки открываются на нейтральном значении, и то же значение сразу
+       лежит в состоянии: что человек видит в поле, то и попадёт в протокол. */
+    if (!st.unit) VGSCH.state.setUnit(cfg.unitDefault);
+    if (!st.position) VGSCH.state.setPosition(cfg.positionDefault);
+
     var readyQuestions = Q.ready().length;
     var readyTypes = T.enabled().filter(function (t) {
       return VGSCH.engine.generator.BUILDERS[t.id];
@@ -107,13 +112,17 @@
       '</div></div>';
   }
 
+  /* Пустого пункта с прочерком в списке нет: роль «не указано» играют
+     обычные значения «нет» и «Другая должность». Пока человек ничего
+     не выбрал, показывается именно такое значение — то же, что уйдёт
+     в протокол. Расхождения между показанным и записанным не возникает. */
   function fieldSelect(id, label, options, value) {
+    var current = value || '';
     return '<div class="field"><div class="field-box is-select">' +
       '<span class="cap">' + ui.esc(label) + '</span>' +
       '<select id="' + id + '" aria-label="' + ui.esc(label) + '">' +
-        '<option value=""' + (value ? '' : ' selected') + '>—</option>' +
         options.map(function (o) {
-          return '<option' + (o === value ? ' selected' : '') + '>' + ui.esc(o) + '</option>';
+          return '<option' + (o === current ? ' selected' : '') + '>' + ui.esc(o) + '</option>';
         }).join('') +
       '</select>' +
       '<span class="ic">' + ui.I.chev + '</span>' +
