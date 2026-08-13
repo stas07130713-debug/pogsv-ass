@@ -36,7 +36,7 @@
       '<div class="panel" style="--accent:var(--exam)">' +
         '<div class="report-grid">' +
           '<div class="protocol" id="protocol">' + protocolMarkup(r, st) + '</div>' +
-          '<img class="report-photo" src="' + ui.asset('assets/img/report-rescuer.png') + '" alt="">' +
+          '<img class="report-photo" src="' + ui.asset('assets/img/report-rescuer.jpg') + '" alt="">' +
         '</div>' +
 
         '<div class="actions no-print">' +
@@ -141,12 +141,14 @@
         /* Основание идёт строкой под вопросом, а не отдельным столбцом:
            четвёртая колонка на телефоне сжимала вопрос до нечитаемой лапши. */
         ? '<h3 class="h-errors">ОШИБКИ</h3><table class="t-errors">' +
-          '<colgroup><col class="c-n"><col class="c-q"><col class="c-a"></colgroup>' +
-          '<tr><th>№</th><th>Вопрос</th><th>Правильный ответ</th></tr>' +
+          '<colgroup><col class="c-n"><col class="c-q"><col class="c-g"><col class="c-a"></colgroup>' +
+          '<tr><th>№</th><th>Вопрос</th><th>Ответ аттестуемого</th>' +
+            '<th>Правильный ответ</th></tr>' +
           errors.map(function (d) {
             return '<tr><td class="num">' + d.n + '</td>' +
               '<td>' + ui.esc(d.text) +
                 (d.npa ? '<span class="src">' + ui.esc(d.npa) + '</span>' : '') + '</td>' +
+              '<td class="given">' + (d.given === null ? 'ответ не дан' : ui.esc(d.given)) + '</td>' +
               '<td>' + ui.esc(d.right) + '</td></tr>';
           }).join('') + '</table>'
         : '<p>Все вопросы и задачи отвечены верно.</p>') +
@@ -253,26 +255,30 @@
       ctx.fillText('ОШИБКИ', MARGIN, y + px(12));
       y += px(22);
 
-      /* Ширины в тех же «пунктах», что и шрифты: № узкий, ответу хватает
-         трети листа, остальное отдаётся тексту вопроса — он длиннее всего. */
-      var colErr = [px(22), W - px(22) - px(150), px(150)];
-      y = header(ctx, y, MARGIN, colErr, ['№', 'Вопрос', 'Правильный ответ'], [false, false, false]);
-
+      /* Ширины в тех же «пунктах», что и шрифты: № узкий, двум колонкам
+         с ответами — по трети листа, остальное тексту вопроса. Ответ
+         аттестуемого стоит перед правильным: сначала что человек выбрал,
+         потом как надо было. */
+      var HEAD = ['№', 'Вопрос', 'Ответ аттестуемого', 'Правильный ответ'];
+      var ALIGN = [false, false, false, false];
+      var colErr = [px(20), W - px(20) - px(230), px(115), px(115)];
+      y = header(ctx, y, MARGIN, colErr, HEAD, ALIGN);
 
       errors.forEach(function (d) {
-        var pad = px(7);
+        var pad = px(6);
         var qLines = wrap(ctx, d.text, colErr[1] - pad * 2, px(10));
         var npaLines = d.npa ? wrap(ctx, d.npa, colErr[1] - pad * 2, px(8.5)) : [];
-        var aLines = wrap(ctx, d.right, colErr[2] - pad * 2, px(10));
+        var gLines = wrap(ctx, d.given === null ? 'ответ не дан' : d.given, colErr[2] - pad * 2, px(10));
+        var aLines = wrap(ctx, d.right, colErr[3] - pad * 2, px(10));
         var h = Math.max(qLines.length * px(14) + npaLines.length * px(12),
+                         gLines.length * px(14),
                          aLines.length * px(14)) + px(12);
 
         /* Строка целиком переносится на следующий лист — разрывать нельзя. */
         if (y + h > PAGE_H - MARGIN) {
           ctx = newPage(pages);
           y = MARGIN;
-          y = header(ctx, y, MARGIN, colErr, ['№', 'Вопрос', 'Правильный ответ'], [false, false, false]);
-
+          y = header(ctx, y, MARGIN, colErr, HEAD, ALIGN);
         }
 
         var x = MARGIN;
@@ -290,7 +296,15 @@
           npaLines.forEach(function (line) { yy += px(12); ctx.fillText(line, x + pad, yy); });
         }
 
+        /* Ответ аттестуемого — красным: в протоколе это то, что проверяющий
+           ищет глазами в первую очередь. */
         x += colErr[1];
+        ctx.fillStyle = d.given === null ? '#6b7480' : '#a8322f';
+        ctx.font = px(10) + 'px ' + FONT;
+        var yg = y + px(4);
+        gLines.forEach(function (line) { yg += px(14); ctx.fillText(line, x + pad, yg); });
+
+        x += colErr[2];
         ctx.fillStyle = INK;
         ctx.font = px(10) + 'px ' + FONT;
         var ya = y + px(4);

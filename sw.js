@@ -34,7 +34,7 @@ var PRECACHE = [
   './assets/img/logo.png',
   './assets/img/rescuer-ok.png',
   './assets/img/rescuer-wrong.png',
-  './assets/img/report-rescuer.png',
+  './assets/img/report-rescuer.jpg',
   './assets/img/icon-192.png',
   './assets/img/icon-512.jpg',
   './assets/img/icon-maskable.jpg'

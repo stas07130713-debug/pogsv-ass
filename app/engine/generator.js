@@ -64,6 +64,34 @@
   }
 
   /**
+   * Шаг «сколько даёт таблица» — с температурой и минутами прямо в тексте.
+   *
+   * Раньше в шаге стояло только «12 мин», а по какой строке таблицы это взято,
+   * приходилось додумывать. Теперь шаг читается сам по себе: видно
+   * температуру, вид работы и найденное по ним значение — именно то, что
+   * человек должен был отыскать в таблице.
+   *
+   * Температура и таблица берутся из самого решателя, а не передаются извне:
+   * при нескольких замерах определяющей может оказаться не та, что в условии,
+   * и подпись под шагом разошлась бы с расчётом.
+   *
+   * @param r  результат температурного решателя
+   * @param activity 'на месте' | 'передвижение'
+   */
+  function tableStep(r, activity) {
+    var tC = r.governing.valueC;
+    var table = r.governing.mode === 'высокая' ? 'табл. N 1' : 'табл. N 2';
+    var work = activity === 'передвижение' ? 'при передвижении' : 'при работе на месте';
+    return step(
+      'Значение по ' + table,
+      'При температуре ' + units.fmt(tC) + ' °C ' + work + ' — ' +
+        units.fmt(r.allowance.minutes) + ' мин',
+      'ФНП № 520, прил. 6, ' + table,
+      r.allowance.reason
+    );
+  }
+
+  /**
    * Маршрут «туда» с расходами, выбранными внутри допустимой доли рабочего запаса.
    * Числа не подгоняются под красивый ответ: сначала бюджет по нормативу,
    * затем распределение внутри него.
@@ -324,8 +352,7 @@
       steps: [
         step('Определяющая температура', units.fmt(t) + ' °C', 'ФНП № 520, прил. 6, п. 11',
              A6.quotes.p11),
-        step('Значение таблицы N 1', units.fmt(r.allowance.minutes) + ' мин',
-             'ФНП № 520, прил. 6, табл. N 1', r.allowance.reason)
+        tableStep(r, 'на месте')
       ]
     };
   };
@@ -343,8 +370,7 @@
                 'в направлении «туда».',
       answer: numericAnswer(r.split.forwardMin, 'мин', 1),
       steps: [
-        step('Допустимое время при передвижении', units.fmt(r.allowance.minutes) + ' мин',
-             'ФНП № 520, прил. 6, табл. N 1', r.allowance.reason),
+        tableStep(r, 'передвижение'),
         step('Распределение времени',
              'туда — 1/3 × ' + units.fmt(r.allowance.minutes) + ' = ' + units.fmt(r.split.forwardMin) +
              ' мин; обратно — 2/3 × ' + units.fmt(r.allowance.minutes) + ' = ' +
@@ -407,8 +433,7 @@
       steps: [
         step('Определяющая температура', units.fmt(r.governing.valueC) + ' °C',
              'ФНП № 520, прил. 6, п. 11 / Устав ВГСЧ, п. 39', r.governing.reason),
-        step('Значение таблицы N 1', units.fmt(r.allowance.minutes) + ' мин',
-             'ФНП № 520, прил. 6, табл. N 1', r.allowance.reason)
+        tableStep(r, activity)
       ]
     };
   };
@@ -421,8 +446,7 @@
 
     var steps = [
       step('Температура воздуха', units.fmt(t) + ' °C', 'ФНП № 520, прил. 6, п. 17', A6.quotes.p17),
-      step('Значение таблицы N 2', units.fmt(r.allowance.minutes) + ' мин',
-           'ФНП № 520, прил. 6, табл. N 2', r.allowance.reason)
+      tableStep(r, activity)
     ];
     if (activity === 'передвижение') {
       steps.push(step('Распределение времени',
@@ -592,9 +616,7 @@
                 'в направлении «туда».',
       answer: numericAnswer(r.split.forwardMin, 'мин', 1),
       steps: [
-        step('Допустимое время при передвижении', units.fmt(r.allowance.minutes) + ' мин',
-             isHigh ? 'ФНП № 520, прил. 6, табл. N 1' : 'ФНП № 520, прил. 6, табл. N 2',
-             r.allowance.reason),
+        tableStep(r, 'передвижение'),
         step('Время движения вперёд', '1/3 × ' + units.fmt(r.allowance.minutes) + ' = ' +
              units.fmt(r.split.forwardMin) + ' мин',
              isHigh ? 'ФНП № 520, прил. 6, п. 12' : 'ФНП № 520, прил. 6, п. 18',

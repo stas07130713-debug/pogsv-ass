@@ -97,7 +97,12 @@
   function renderIdentify(root) {
     var st = VGSCH.state.data;
     if (!st.unit) VGSCH.state.setUnit(cfg.unitDefault);
-    if (!st.position) VGSCH.state.setPosition(cfg.positionDefault);
+    /* На аттестации спасателей на ГСР по умолчанию стоит «Член ВГК»:
+       её сдают именно они, и выбирать должность вручную каждый раз незачем.
+       Список при этом открыт — должность можно поменять. */
+    if (!st.position) {
+      VGSCH.state.setPosition(kind === 'vgk' ? cfg.positionVgk : cfg.positionDefault);
+    }
 
     var v = ui.paint(root,
       ui.appbar({ mode: 'exam', title: 'Экзамен', backArrow: true }) +
@@ -121,6 +126,9 @@
       '</div>' +
       ui.tabbar('exam'));
 
+    /* Стрелка возвращает к выбору аттестации, а не в предыдущий режим:
+       «кто сдаёт» — это состояние внутри экзамена, а не отдельный экран. */
+    VGSCH.router.setBackHandler(function () { renderKindPicker(root); return true; });
     ui.wireNav(v);
 
     var fio = v.querySelector('#fio');
@@ -439,7 +447,12 @@
     ui.on(v, '[data-act="next"]', function () {
       if (last) renderHub(root); else renderQuestion(root, index + 1);
     });
-    ui.on(v, '.appbar [data-nav]', function () { renderHub(root); });
+    /* Стрелка и системная кнопка «назад» ведут к общему прогрессу.
+       Через роутер, а не своим слушателем: так обе кнопки ходят одинаково. */
+    VGSCH.router.setBackHandler(function () { renderHub(root); return true; });
+    /* Само нажатие на стрелку: wireNav здесь не вызывается — он повесил бы
+       и обработчик на [data-nav], а у нижней панели свой, с подтверждением. */
+    ui.on(v, '.appbar [data-back]', function () { VGSCH.router.back(); });
     ui.on(v, '.tabbar [data-nav]', function (b) {
       if (confirm('Выйти из экзамена? Результаты текущего подхода будут потеряны.')) {
         stopTimer(); run = null; VGSCH.router.go(b.dataset.nav);
@@ -526,7 +539,12 @@
     ui.on(v, '[data-act="next"]', function () {
       if (last) renderHub(root); else renderTask(root, index + 1);
     });
-    ui.on(v, '.appbar [data-nav]', function () { renderHub(root); });
+    /* Стрелка и системная кнопка «назад» ведут к общему прогрессу.
+       Через роутер, а не своим слушателем: так обе кнопки ходят одинаково. */
+    VGSCH.router.setBackHandler(function () { renderHub(root); return true; });
+    /* Само нажатие на стрелку: wireNav здесь не вызывается — он повесил бы
+       и обработчик на [data-nav], а у нижней панели свой, с подтверждением. */
+    ui.on(v, '.appbar [data-back]', function () { VGSCH.router.back(); });
     ui.on(v, '.tabbar [data-nav]', function (b) {
       if (confirm('Выйти из экзамена? Результаты текущего подхода будут потеряны.')) {
         stopTimer(); run = null; VGSCH.router.go(b.dataset.nav);
@@ -790,7 +808,8 @@
       ui.tabbar('exam'));
 
     ui.on(v, '[data-act="back"]', function () { renderResult(root, r, !run); });
-    ui.on(v, '.appbar [data-nav]', function () { renderResult(root, r, !run); });
+    VGSCH.router.setBackHandler(function () { renderResult(root, r, !run); return true; });
+    ui.on(v, '.appbar [data-back]', function () { VGSCH.router.back(); });
     ui.on(v, '[data-act="report"]', function () { VGSCH.router.go('protocol', { result: r }); });
     ui.on(v, '.tabbar [data-nav]', function (b) { run = null; VGSCH.router.go(b.dataset.nav); });
   }
