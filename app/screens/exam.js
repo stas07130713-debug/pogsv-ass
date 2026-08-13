@@ -17,6 +17,10 @@
 
   /* ------------------------------------------------------------ запуск --- */
 
+  /* Какая аттестация выбрана: 'platoon' — взвода (вопросы + задачи),
+     'vgk' — спасателей на ГСР (билет ВГК целиком, без задач). */
+  var kind = null;
+
   function render(root, params) {
     /* Незаконченный подход продолжается с того же места. */
     if (run && !run.finished) { renderHub(root); return; }
@@ -27,12 +31,65 @@
     var saved = VGSCH.state.lastExam();
     if (saved && !(params && params.fresh)) { renderResult(root, saved, true); return; }
 
-    /* Данные проверяемого спрашиваются здесь, а не на главной: в протокол
-       они попадают только с экзамена, а для тренировки в тестах и задачах
-       набирать фамилию каждый раз незачем. */
-    if (!VGSCH.state.isIdentified()) { renderIdentify(root); return; }
+    renderKindPicker(root);
+  }
 
-    startExam(root);
+  /* --------------------------------------------------- выбор аттестации -- */
+
+  function renderKindPicker(root) {
+    var Q = VGSCH.data.questions;
+    var vgk = VGSCH.data.vgk;
+    var platoonReady = Q.ready().length >= cfg.exam.questionCount;
+    var vgkReady = vgk.tickets.length > 0;
+
+    var v = ui.paint(root,
+      ui.appbar({ mode: 'exam', title: 'Экзамен' }) +
+      '<div class="panel" style="--accent:var(--exam)">' +
+        '<h3 style="margin-bottom:6px">Выберите аттестацию</h3>' +
+        '<p class="muted" style="margin:0 0 14px">Данные проверяемого спрашиваются ' +
+        'на следующем шаге — они попадут в протокол.</p>' +
+
+        kindCard('platoon', ui.I.tests, 'Аттестация взвода',
+                 cfg.exam.questionCount + ' вопросов и ' +
+                 ui.count(cfg.exam.taskCount, ['расчётная задача', 'расчётные задачи', 'расчётных задач']) +
+                 (cfg.exam.timeLimitMin ? ', ' + cfg.exam.timeLimitMin + ' минут' : '') + '.',
+                 'Зачёт: не менее ' + cfg.exam.passQuestions + ' верных ответов и ' +
+                 cfg.exam.passTasks + ' решённых задач.',
+                 'var(--tests)', platoonReady) +
+
+        kindCard('vgk', ui.I.study, 'Аттестация спасателей на ГСР',
+                 'Билет ВГК целиком: 20 вопросов в том же порядке, что в бланке' +
+                 (cfg.examVgk.timeLimitMin ? ', ' + cfg.examVgk.timeLimitMin + ' минут' : '') + '.',
+                 'Зачёт: допускается не более ' +
+                 ui.count(cfg.examVgk.allowedMistakes, ['ошибки', 'ошибок', 'ошибок']) + '.',
+                 'var(--study)', vgkReady) +
+      '</div>' +
+      ui.tabbar('exam'));
+
+    ui.wireNav(v);
+    ui.on(v, '[data-kind]', function (b) {
+      kind = b.dataset.kind;
+      if (!VGSCH.state.isIdentified()) { renderIdentify(root); return; }
+      begin(root);
+    });
+  }
+
+  function kindCard(key, icon, title, line1, line2, color, enabled) {
+    return '<button class="kind-card" data-kind="' + key + '" style="--c:' + color + '"' +
+      (enabled ? '' : ' disabled') + '>' +
+      '<span class="ic">' + icon + '</span>' +
+      '<span class="tx">' +
+        '<b>' + ui.esc(title) + '</b>' +
+        '<span>' + ui.esc(line1) + '</span>' +
+        '<span class="pass">' + ui.esc(line2) + '</span>' +
+      '</span>' +
+      '<span class="go">' + ui.I.next + '</span>' +
+      '</button>';
+  }
+
+  /** Запуск выбранной аттестации. */
+  function begin(root) {
+    if (kind === 'vgk') startVgkExam(root); else startExam(root);
   }
 
   /* ------------------------------------------------------ кто сдаёт ------ */
@@ -60,9 +117,7 @@
           '<button class="primary" style="--accent:var(--exam)" data-act="begin">' +
             'Начать экзамен' + ui.I.next + '</button>' +
         '</div>' +
-        '<div class="footer-note">' + cfg.exam.questionCount + ' вопросов и ' +
-          ui.count(cfg.exam.taskCount, ['задача', 'задачи', 'задач']) +
-          (cfg.exam.timeLimitMin ? ', ' + cfg.exam.timeLimitMin + ' минут' : '') + '.</div>' +
+        '<div class="footer-note">' + hint() + '</div>' +
       '</div>' +
       ui.tabbar('exam'));
 
@@ -79,17 +134,30 @@
     v.querySelector('#unit').addEventListener('change', function (e) { VGSCH.state.setUnit(e.target.value); });
     v.querySelector('#position').addEventListener('change', function (e) { VGSCH.state.setPosition(e.target.value); });
 
-    function begin() {
+    function go() {
       if (!VGSCH.state.isIdentified()) {
         err.textContent = 'Укажите фамилию и инициалы — они попадут в протокол.';
         fio.focus();
         return;
       }
-      startExam(root);
+      begin(root);
     }
     /* Ввод с клавиатуры телефона тоже начинает экзамен. */
-    fio.addEventListener('keydown', function (e) { if (e.key === 'Enter') begin(); });
-    ui.on(v, '[data-act="begin"]', begin);
+    fio.addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); });
+    ui.on(v, '[data-act="begin"]', go);
+  }
+
+  /** Строка под кнопкой: из чего состоит выбранная аттестация. */
+  function hint() {
+    if (kind === 'vgk') {
+      return 'Билет ВГК: 20 вопросов' +
+        (cfg.examVgk.timeLimitMin ? ', ' + cfg.examVgk.timeLimitMin + ' минут' : '') +
+        '. Допускается не более ' +
+        ui.count(cfg.examVgk.allowedMistakes, ['ошибки', 'ошибок', 'ошибок']) + '.';
+    }
+    return cfg.exam.questionCount + ' вопросов и ' +
+      ui.count(cfg.exam.taskCount, ['задача', 'задачи', 'задач']) +
+      (cfg.exam.timeLimitMin ? ', ' + cfg.exam.timeLimitMin + ' минут' : '') + '.';
   }
 
   /* Подпись поля лежит отдельным слоем поверх и не перехватывает нажатия,
@@ -157,11 +225,56 @@
     renderHub(root);
   }
 
+  /* --------------------------------------- аттестация спасателей на ГСР -- */
+
+  /**
+   * Билет ВГК целиком. Вопросы и их порядок берутся из бланка как есть —
+   * перемешиваются только варианты ответа внутри вопроса, чтобы нельзя было
+   * выучить «правильный всегда второй». Расчётных задач в этой аттестации нет.
+   */
+  function startVgkExam(root) {
+    VGSCH.state.clearExam();
+
+    var vgk = VGSCH.data.vgk;
+    var rng = rngLib.create(rngLib.freshSeed());
+    var ticket = vgk.tickets[Math.floor(rng.next() * vgk.tickets.length)];
+
+    var questions = ticket.questions
+      /* Вопрос без подтверждённого ответа в оценку не идёт. */
+      .filter(function (q) { return q.correct !== null; })
+      .map(function (q) {
+        var order = rng.shuffle(q.o.map(function (_, i) { return i; }));
+        return {
+          kind: 'question',
+          q: { id: q.id, question: q.q, section: q.topic, npa: null },
+          options: order.map(function (i) { return q.o[i]; }),
+          correct: order.indexOf(q.correct)
+        };
+      });
+
+    run = {
+      vgk: true, ticketNo: ticket.no,
+      questions: questions, tasks: [],
+      qAnswers: new Array(questions.length),
+      tAnswers: [],
+      elapsedSec: 0, finished: false, result: null
+    };
+
+    startTimer(root);
+    renderHub(root);
+  }
+
+  /** Настройки текущей аттестации: у ГСР свой лимит времени. */
+  function rules() {
+    return (run && run.vgk) ? cfg.examVgk : cfg.exam;
+  }
+
   function startTimer(root) {
     stopTimer();
-    if (cfg.exam.timeLimitMin > 0) {
-      timer = ui.countdown(cfg.exam.timeLimitMin * 60, function (left) {
-        run.elapsedSec = cfg.exam.timeLimitMin * 60 - left;
+    var limit = rules().timeLimitMin;
+    if (limit > 0) {
+      timer = ui.countdown(limit * 60, function (left) {
+        run.elapsedSec = limit * 60 - left;
         paintTimer(left, left <= 60);
       }, function () { finish(root, true); });
     } else {
@@ -179,7 +292,8 @@
   }
 
   function timerSeconds() {
-    return cfg.exam.timeLimitMin > 0 ? cfg.exam.timeLimitMin * 60 - run.elapsedSec : run.elapsedSec;
+    var limit = rules().timeLimitMin;
+    return limit > 0 ? limit * 60 - run.elapsedSec : run.elapsedSec;
   }
 
   function answeredCount(arr) {
@@ -201,7 +315,7 @@
       '<div class="panel" style="--accent:var(--exam)">' +
         '<div class="exam-overview">' +
           '<div>' +
-            '<div class="ttl">Общий прогресс</div>' +
+            '<div class="ttl">' + (run.vgk ? 'Билет № ' + run.ticketNo : 'Общий прогресс') + '</div>' +
             '<div class="cnt">Выполнено: ' + done + ' из ' + total + '</div>' +
             ui.bar(total ? done / total * 100 : 0, 'var(--exam)') +
           '</div>' +
@@ -209,10 +323,15 @@
         '</div>' +
       '</div>' +
 
-      partCard('tests', ui.I.tests, 'Тесты', run.questions.length + ' вопросов',
+      partCard('tests', ui.I.tests, 'Вопросы',
+               ui.count(run.questions.length, ['вопрос', 'вопроса', 'вопросов']),
                qDone, run.questions.length) +
-      partCard('tasks', ui.I.tasks, 'Задачи', run.tasks.length + ' задачи',
-               tDone, run.tasks.length) +
+      /* В аттестации на ГСР расчётных задач нет — карточка не нужна. */
+      (run.tasks.length
+        ? partCard('tasks', ui.I.tasks, 'Задачи',
+                   ui.count(run.tasks.length, ['задача', 'задачи', 'задач']),
+                   tDone, run.tasks.length)
+        : '') +
 
       '<div class="actions">' +
         '<button data-act="pause">' + (paused ? ui.I.play + 'Продолжить' : ui.I.pause + 'Пауза') + '</button>' +
@@ -226,7 +345,7 @@
         : '') +
       ui.tabbar('exam'));
 
-    paintTimer(timerSeconds(), cfg.exam.timeLimitMin > 0 && timerSeconds() <= 60);
+    paintTimer(timerSeconds(), rules().timeLimitMin > 0 && timerSeconds() <= 60);
 
     ui.on(v, '[data-part="tests"]', function () { renderQuestion(root, firstUnanswered(run.qAnswers)); });
     ui.on(v, '[data-part="tasks"]', function () { renderTask(root, firstUnanswered(run.tAnswers)); });
@@ -298,7 +417,7 @@
       '</div>' +
       ui.tabbar('exam'));
 
-    paintTimer(timerSeconds(), cfg.exam.timeLimitMin > 0 && timerSeconds() <= 60);
+    paintTimer(timerSeconds(), rules().timeLimitMin > 0 && timerSeconds() <= 60);
 
     VGSCH.feedback.wire(v, function () {
       return {
@@ -370,7 +489,7 @@
       '</div>' +
       ui.tabbar('exam'));
 
-    paintTimer(timerSeconds(), cfg.exam.timeLimitMin > 0 && timerSeconds() <= 60);
+    paintTimer(timerSeconds(), rules().timeLimitMin > 0 && timerSeconds() <= 60);
 
     VGSCH.feedback.wire(v, function () {
       return {
@@ -461,23 +580,35 @@
     var totalCorrect = qCorrect + tCorrect;
     var totalItems = run.questions.length + run.tasks.length;
 
+    /* Зачёт считается по правилам выбранной аттестации: у взвода — пороги
+       по вопросам и задачам, у ГСР — число допустимых ошибок. */
+    var mistakes = run.questions.length - qCorrect;
+    var passed = run.vgk
+      ? mistakes <= cfg.examVgk.allowedMistakes
+      : (qCorrect >= cfg.exam.passQuestions && tCorrect >= cfg.exam.passTasks);
+
     return {
+      vgk: !!run.vgk,
+      ticketNo: run.ticketNo || null,
+      mistakes: mistakes,
+      allowedMistakes: run.vgk ? cfg.examVgk.allowedMistakes : null,
       qCorrect: qCorrect, qTotal: run.questions.length,
       tCorrect: tCorrect, tTotal: run.tasks.length,
       totalCorrect: totalCorrect, totalItems: totalItems,
       percent: Math.round(totalCorrect / totalItems * 100),
-      passed: qCorrect >= cfg.exam.passQuestions && tCorrect >= cfg.exam.passTasks,
+      passed: passed,
       details: details, elapsedSec: run.elapsedSec,
-      weakSections: weakSections(details)
+      weakSections: weakSections(details, run.vgk)
     };
   }
 
   /**
    * Разделы, в которых были ошибки, — от худшего к лучшему.
    * Считаются только вопросы: у расчётных задач разделов банка нет.
+   * У аттестации на ГСР свои темы — они лежат в банке билетов.
    */
-  function weakSections(details) {
-    var SECTIONS = VGSCH.data.questions.SECTIONS;
+  function weakSections(details, isVgk) {
+    var SECTIONS = isVgk ? VGSCH.data.vgk.TOPICS : VGSCH.data.questions.SECTIONS;
     var by = {};
     details.forEach(function (d) {
       if (d.kind !== 'question' || !d.section) return;
@@ -521,16 +652,21 @@
           '. Сохраняются, пока открыта вкладка: отчёт можно распечатать в любой момент.</div>'
         : '') +
       '<div class="panel" style="--accent:var(--exam)">' +
-        '<div class="exam-title">Экзамен завершён</div>' +
+        '<div class="exam-title">' +
+          (r.vgk ? 'Аттестация на ГСР — билет № ' + r.ticketNo : 'Экзамен завершён') + '</div>' +
         '<div class="summary-grid">' +
           ui.donut(r.percent, null) +
           '<div class="score-rows">' +
-            '<div class="score-row"><span>Тесты (' + r.qTotal + ')</span>' +
+            '<div class="score-row"><span>Вопросы (' + r.qTotal + ')</span>' +
               '<span class="v" style="color:var(--tests)">' + r.qCorrect +
               '<small> / ' + r.qTotal + '</small></span></div>' +
-            '<div class="score-row"><span>Задачи (' + r.tTotal + ')</span>' +
-              '<span class="v" style="color:var(--tasks)">' + r.tCorrect +
-              '<small> / ' + r.tTotal + '</small></span></div>' +
+            (r.vgk
+              ? '<div class="score-row"><span>Ошибок</span>' +
+                '<span class="v" style="color:' + (r.mistakes ? 'var(--bad)' : 'var(--ok)') + '">' +
+                r.mistakes + '<small> / ' + r.allowedMistakes + ' допустимо</small></span></div>'
+              : '<div class="score-row"><span>Задачи (' + r.tTotal + ')</span>' +
+                '<span class="v" style="color:var(--tasks)">' + r.tCorrect +
+                '<small> / ' + r.tTotal + '</small></span></div>') +
             '<div class="score-row total"><span>Общий балл</span>' +
               '<span class="v">' + r.percent + '<small> / 100</small></span></div>' +
           '</div>' +
@@ -538,12 +674,8 @@
 
         '<div class="banner ' + (r.passed ? 'ok' : 'bad') + '">' +
           '<span class="bic">' + (r.passed ? ui.I.cup : ui.I.badCircle) + '</span>' +
-          '<div><b>' + (r.passed ? 'Экзамен сдан' : 'Экзамен не сдан') + '</b>' +
-            '<span>' + (r.passed
-              ? 'Результат удовлетворяет обоим порогам. Затрачено ' + ui.clock(r.elapsedSec) + '.'
-              : 'Требуется не менее ' + cfg.exam.passQuestions + ' верных ответов из ' + r.qTotal +
-                ' и не менее ' + cfg.exam.passTasks + ' решённых задач из ' + r.tTotal + '.') +
-            '</span></div>' +
+          '<div><b>' + (r.passed ? 'Аттестация пройдена' : 'Аттестация не пройдена') + '</b>' +
+            '<span>' + verdictText(r) + '</span></div>' +
         '</div>' +
 
         weakBlock(r) +
@@ -571,19 +703,37 @@
     ui.on(v, '[data-act="again"]', function () {
       if (!confirm('Начать новый экзамен? Итоги предыдущего будут удалены.')) return;
       run = null;
-      startExam(root);
+      VGSCH.state.clearExam();
+      renderKindPicker(root);
     });
-    /* Прогон по слабым темам: открываем «Тесты», ограниченные этими разделами. */
+    /* Прогон по слабым темам. Вопросы взвода лежат в «Вопросах», вопросы
+       билетов ВГК — в «Тестах ГСР», поэтому и экран разный. */
     ui.on(v, '[data-act="drill"]', function () {
       var keys = r.weakSections.map(function (s) { return s.key; });
       run = null;
-      VGSCH.router.go('tests', { sections: keys, reason: 'слабые темы по итогам экзамена' });
+      if (r.vgk) VGSCH.router.go('vgk', { topic: keys[0] });
+      else VGSCH.router.go('tests', { sections: keys, reason: 'слабые темы по итогам экзамена' });
     });
     ui.on(v, '[data-drill-one]', function (b) {
       run = null;
-      VGSCH.router.go('tests', { sections: [b.dataset.drillOne] });
+      if (r.vgk) VGSCH.router.go('vgk', { topic: b.dataset.drillOne });
+      else VGSCH.router.go('tests', { sections: [b.dataset.drillOne] });
     });
     ui.on(v, '.tabbar [data-nav]', function (b) { run = null; VGSCH.router.go(b.dataset.nav); });
+  }
+
+  /** Пояснение под вердиктом — по правилам своей аттестации. */
+  function verdictText(r) {
+    if (r.vgk) {
+      return r.passed
+        ? 'Ошибок ' + r.mistakes + ' при допустимых ' + r.allowedMistakes +
+          '. Затрачено ' + ui.clock(r.elapsedSec) + '.'
+        : 'Ошибок ' + r.mistakes + ', допускается не более ' + r.allowedMistakes + '.';
+    }
+    return r.passed
+      ? 'Результат удовлетворяет обоим порогам. Затрачено ' + ui.clock(r.elapsedSec) + '.'
+      : 'Требуется не менее ' + cfg.exam.passQuestions + ' верных ответов из ' + r.qTotal +
+        ' и не менее ' + cfg.exam.passTasks + ' решённых задач из ' + r.tTotal + '.';
   }
 
   /** Блок «Слабые темы» с кнопкой повторного прогона. */

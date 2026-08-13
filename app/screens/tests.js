@@ -41,12 +41,20 @@
         '<div class="pick-list">' +
           pickItem('', 'Все разделы', Q.ready().length) +
           sections.map(function (s) { return pickItem(s.key, s.title, s.count); }).join('') +
+          /* Психология идёт последней и ведёт не в прогон, а в чтение:
+             там развёрнутые темы, которые не сводятся к выбору варианта. */
+          (Q.study().length
+            ? '<button class="pick-item" data-study="1">' +
+              '<span class="t">Психология — материалы для чтения</span>' +
+              '<span class="n">' + ui.count(Q.study().length, ['тема', 'темы', 'тем']) + '</span></button>'
+            : '') +
         '</div>' +
       '</div>' +
       ui.tabbar('tests'));
 
     ui.wireNav(v);
-    ui.on(v, '.pick-item', function (b) { startRun(root, b.dataset.section || null); });
+    ui.on(v, '[data-study]', function () { VGSCH.router.go('study'); });
+    ui.on(v, '.pick-item[data-section]', function (b) { startRun(root, b.dataset.section || null); });
   }
 
   function pickItem(key, title, count) {

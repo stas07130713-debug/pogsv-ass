@@ -167,11 +167,11 @@
 
   var ACCENT = {
     tests: 'var(--tests)', tasks: 'var(--tasks)', exam: 'var(--exam)',
-    study: 'var(--study)', home: 'var(--exam)'
+    study: 'var(--study)', vgk: 'var(--study)', home: 'var(--exam)'
   };
   var ACCENT_BG = {
     tests: 'var(--tests-bg)', tasks: 'var(--tasks-bg)',
-    exam: 'var(--exam-bg)', study: 'var(--study-bg)'
+    exam: 'var(--exam-bg)', study: 'var(--study-bg)', vgk: 'var(--study-bg)'
   };
 
   /** Шапка экрана: кнопка возврата, название режима, таймер, кто проходит.
@@ -205,7 +205,8 @@
   function tabbar(active) {
     var items = [
       { key: 'start', label: 'Главная', icon: I.home, c: 'var(--exam)' },
-      { key: 'tests', label: 'Тесты', icon: I.tests, c: 'var(--tests)' },
+      { key: 'tests', label: 'Вопросы', icon: I.tests, c: 'var(--tests)' },
+      { key: 'vgk', label: 'Тесты ГСР', icon: I.study, c: 'var(--study)' },
       { key: 'tasks', label: 'Задачи', icon: I.tasks, c: 'var(--tasks)' },
       { key: 'exam', label: 'Экзамен', icon: I.stats, c: 'var(--exam)' }
     ];
