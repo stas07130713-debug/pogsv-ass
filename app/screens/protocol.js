@@ -57,6 +57,11 @@
     ui.wireNav(v);
   }
 
+  /** «из 30:00» — лимит времени своей аттестации. */
+  function limitText(r) {
+    var limit = r.vgk ? cfg.examVgk.timeLimitMin : cfg.exam.timeLimitMin;
+    return limit ? ' из ' + limit + ':00' : '';
+  }
   /* --------------------------------------------------------------- PDF ---- */
 
   function savePdf(r, st, btn, note) {
@@ -96,27 +101,34 @@
 
     return '<h3>ПРОТОКОЛ ПРОВЕРКИ ЗНАНИЙ</h3>' +
       '<dl>' +
+        '<dt>Аттестация:</dt><dd>' +
+          (r.vgk ? 'спасателей на ГСР, билет № ' + r.ticketNo : 'взвода') + '</dd>' +
         '<dt>ФИО:</dt><dd>' + ui.esc(st.person) + '</dd>' +
         (st.unit ? '<dt>Номер отделения:</dt><dd>' + ui.esc(st.unit) + '</dd>' : '') +
         (st.position ? '<dt>Должность:</dt><dd>' + ui.esc(st.position) + '</dd>' : '') +
         /* Дата экзамена, а не дата печати: к отчёту можно вернуться позже. */
         '<dt>Дата:</dt><dd>' + ui.dateTime(r.finishedAt || new Date()) + '</dd>' +
-        '<dt>Затрачено:</dt><dd>' + ui.clock(r.elapsedSec) +
-          (cfg.exam.timeLimitMin ? ' из ' + cfg.exam.timeLimitMin + ':00' : '') + '</dd>' +
+        '<dt>Затрачено:</dt><dd>' + ui.clock(r.elapsedSec) + limitText(r) + '</dd>' +
       '</dl>' +
 
       '<table class="t-score">' +
         '<colgroup><col><col><col><col></colgroup>' +
         '<tr><th>Раздел</th><th class="r">Результат</th>' +
           '<th class="r">Порог</th><th class="r">%</th></tr>' +
-        '<tr><td>Тесты (' + r.qTotal + ' вопросов)</td>' +
+        '<tr><td>Вопросы (' + r.qTotal + ')</td>' +
           '<td class="num">' + r.qCorrect + ' / ' + r.qTotal + '</td>' +
-          '<td class="num">' + cfg.exam.passQuestions + '</td>' +
+          '<td class="num">' + (r.vgk ? r.qTotal - r.allowedMistakes : cfg.exam.passQuestions) + '</td>' +
           '<td class="num">' + Math.round(r.qCorrect / r.qTotal * 100) + ' %</td></tr>' +
-        '<tr><td>Задачи (' + r.tTotal + ' задачи)</td>' +
-          '<td class="num">' + r.tCorrect + ' / ' + r.tTotal + '</td>' +
-          '<td class="num">' + cfg.exam.passTasks + '</td>' +
-          '<td class="num">' + Math.round(r.tCorrect / r.tTotal * 100) + ' %</td></tr>' +
+        /* У аттестации на ГСР расчётных задач нет — строки в протоколе тоже. */
+        (r.vgk
+          ? '<tr><td>Ошибок</td>' +
+            '<td class="num">' + r.mistakes + '</td>' +
+            '<td class="num">не более ' + r.allowedMistakes + '</td>' +
+            '<td class="num">—</td></tr>'
+          : '<tr><td>Задачи (' + r.tTotal + ')</td>' +
+            '<td class="num">' + r.tCorrect + ' / ' + r.tTotal + '</td>' +
+            '<td class="num">' + cfg.exam.passTasks + '</td>' +
+            '<td class="num">' + Math.round(r.tCorrect / r.tTotal * 100) + ' %</td></tr>') +
         '<tr class="total"><th>Общий результат</th>' +
           '<td class="num">' + r.totalCorrect + ' / ' + r.totalItems + '</td>' +
           '<td class="num">—</td>' +
@@ -185,12 +197,12 @@
 
     /* ---- кто и когда ---- */
     var rows = [
+      ['Аттестация:', r.vgk ? 'спасателей на ГСР, билет № ' + r.ticketNo : 'взвода'],
       ['ФИО:', st.person || '—'],
       ['Номер отделения:', st.unit || '—'],
       ['Должность:', st.position || '—'],
       ['Дата:', ui.dateTime(r.finishedAt || new Date())],
-      ['Затрачено:', ui.clock(r.elapsedSec) +
-        (cfg.exam.timeLimitMin ? ' из ' + cfg.exam.timeLimitMin + ':00' : '')]
+      ['Затрачено:', ui.clock(r.elapsedSec) + limitText(r)]
     ];
     var labelW = px(115);
     rows.forEach(function (row) {
@@ -210,10 +222,13 @@
     y = table(ctx, y, MARGIN, colScore,
       ['Раздел', 'Результат', 'Порог', '%'],
       [
-        ['Тесты (' + r.qTotal + ' вопросов)', r.qCorrect + ' / ' + r.qTotal,
-         String(cfg.exam.passQuestions), Math.round(r.qCorrect / r.qTotal * 100) + ' %'],
-        ['Задачи (' + r.tTotal + ' задачи)', r.tCorrect + ' / ' + r.tTotal,
-         String(cfg.exam.passTasks), Math.round(r.tCorrect / r.tTotal * 100) + ' %'],
+        ['Вопросы (' + r.qTotal + ')', r.qCorrect + ' / ' + r.qTotal,
+         String(r.vgk ? r.qTotal - r.allowedMistakes : cfg.exam.passQuestions),
+         Math.round(r.qCorrect / r.qTotal * 100) + ' %'],
+        (r.vgk
+          ? ['Ошибок', String(r.mistakes), 'не более ' + r.allowedMistakes, '—']
+          : ['Задачи (' + r.tTotal + ')', r.tCorrect + ' / ' + r.tTotal,
+             String(cfg.exam.passTasks), Math.round(r.tCorrect / r.tTotal * 100) + ' %']),
         ['Общий результат', r.totalCorrect + ' / ' + r.totalItems, '—', r.percent + ' %']
       ],
       [false, true, true, true], true);

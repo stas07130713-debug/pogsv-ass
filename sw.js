@@ -24,6 +24,8 @@ var PRECACHE = [
   './manifest.webmanifest',
   './assets/styles.css',
   './app/core/pdf.js',
+  './app/data/vgk.js',
+  './app/screens/vgk.js',
   './assets/img/bg-start.jpg',
   './assets/img/bg-start-mobile.jpg',
   './assets/img/bg-tests.jpg',

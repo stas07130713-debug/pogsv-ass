@@ -107,7 +107,7 @@
       return VGSCH.engine.generator.BUILDERS[t.id];
     }).length;
     var examPossible = readyQuestions >= cfg.exam.questionCount && readyTypes > 0;
-    var studyCount = Q.study().length;
+    var vgkCount = VGSCH.data.vgk.ready().length;
 
     var v = ui.paint(root,
       '<div class="start">' +
@@ -138,19 +138,19 @@
 
           '<div class="pick-label">Выберите режим работы:</div>' +
           '<div class="modes">' +
-            modeCard('tests', ui.I.tests, 'Тесты', 'Тестовые<br>вопросы', readyQuestions > 0) +
+            modeCard('tests', ui.I.tests, 'Вопросы', 'для аттестации<br>взвода', readyQuestions > 0) +
             modeCard('tasks', ui.I.tasks, 'Задачи', 'Расчётные<br>задачи', readyTypes > 0) +
             /* Если экзамен уже сдан в этом сеансе, карточка ведёт к его итогам,
                а не к новому подходу — об этом и подпись. */
             modeCard('exam', ui.I.cup, 'Экзамен',
                      VGSCH.state.lastExam()
                        ? 'Результат<br>сохранён'
-                       : cfg.exam.questionCount + ' тестов<br>+ ' + cfg.exam.taskCount + ' задачи',
+                       : 'Аттестация взвода<br>и спасателей ГСР',
                      examPossible) +
-            (studyCount
-              ? modeCard('study', ui.I.study, 'Психология',
-                         'Ответы<br>для чтения', true)
-              : '') +
+            /* Психология переехала в список разделов внутри «Вопросов»:
+               на главной её место заняли тесты по билетам ВГК. */
+            modeCard('vgk', ui.I.study, 'Тесты',
+                     'для аттестации<br>спасателей на ГСР', vgkCount > 0) +
           '</div>' +
 
           installButton() +

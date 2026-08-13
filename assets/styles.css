@@ -91,6 +91,7 @@ body[data-screen="tasks"]::before    { background-image: url("img/bg-tasks.jpg")
 body[data-screen="exam"]::before     { background-image: url("img/bg-exam.jpg"); }
 body[data-screen="protocol"]::before { background-image: url("img/bg-exam.jpg"); }
 body[data-screen="study"]::before    { background-image: url("img/bg-tests.jpg"); }
+body[data-screen="vgk"]::before      { background-image: url("img/bg-tests.jpg"); }
 
 /* Затемнение поверх снимка: на рабочих экранах сплошной текст, фон должен
    оставаться фоном. На главном своё затемнение — только слева, под формой. */
@@ -349,6 +350,40 @@ h1, h2, h3, h4 { margin: 0; font-weight: 700; }
   margin-left: auto; flex: none; white-space: nowrap;
   color: var(--text-mute); font-size: 13px; font-variant-numeric: tabular-nums;
 }
+
+/* Карточка выбора аттестации в разделе «Экзамен». */
+.kind-card {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) 22px; gap: 14px;
+  align-items: center; width: 100%; text-align: left;
+  padding: 15px 17px; margin-bottom: 10px;
+  background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+}
+.kind-card .ic {
+  display: grid; place-items: center;
+  width: 44px; height: 44px; border-radius: 50%;
+  color: var(--c); background: rgba(255, 255, 255, .05);
+  border: 1px solid var(--c);
+}
+.kind-card .tx { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.kind-card .tx b { font-size: 16px; color: var(--c); letter-spacing: .3px; }
+.kind-card .tx span { font-size: 13px; color: var(--text-dim); line-height: 1.4; }
+.kind-card .tx .pass { color: var(--text-mute); font-size: 12.5px; }
+.kind-card .go { color: var(--text-mute); display: grid; place-items: center; }
+.kind-card:hover { border-color: var(--c); }
+.kind-card:disabled { opacity: .45; cursor: default; }
+
+/* Сетка билетов: номера в ряд, нажимаются пальцем. */
+.ticket-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px;
+}
+.ticket-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 11px 6px; line-height: 1.1;
+  background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+}
+.ticket-btn .nn { font-size: 19px; font-weight: 700; color: var(--study); }
+.ticket-btn .tt { font-size: 11px; color: var(--text-mute); }
+.ticket-btn:hover { border-color: var(--study); }
 
 /* =========================================================== кнопки ====== */
 
