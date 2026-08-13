@@ -35,16 +35,41 @@
     return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   }
 
+  /* Предложение показывается один раз за сеанс: отказался — больше не лезем. */
+  var offerHidden = false;
+
+  /** Полоса-предложение вверху главного экрана. */
+  function installOffer() {
+    if (installed() || offerHidden || !installEvent) return '';
+    return '<div class="install-offer">' +
+      '<span class="ic">' + ui.I.install + '</span>' +
+      '<span class="tx"><b>Поставить значок на рабочий стол?</b>' +
+        '<span>Открывается как обычное приложение и работает без связи</span></span>' +
+      '<span class="go">' +
+        '<button class="primary" data-act="install" type="button">Поставить</button>' +
+        '<button data-act="install-later" type="button">Позже</button>' +
+      '</span></div>';
+  }
+
+  /** Кнопка внизу — на случай, если предложение закрыли. */
   function installButton() {
     if (installed()) return '';
     return '<button class="install-btn" data-act="install" type="button">' +
       '<span class="ic">' + ui.I.install + '</span>' +
-      '<span class="tx"><b>Установить на телефон</b>' +
-      '<span>Значок на рабочий стол, работа без связи</span></span></button>';
+      '<span class="tx"><b>Значок на рабочий стол</b>' +
+      '<span>Запуск как у обычного приложения, работа без связи</span></span></button>';
   }
 
+  /**
+   * Установка. На Android и в настольных Chrome, Edge, Яндекс.Браузере
+   * выполняется сама: браузер показывает своё окно подтверждения, больше
+   * ничего нажимать не нужно.
+   *
+   * На iPhone установить программно нельзя — Apple не даёт для этого никакой
+   * возможности, значок ставится только вручную через меню «Поделиться».
+   * Поэтому там (и только там) остаётся короткая подсказка.
+   */
   function doInstall(view) {
-    /* Android и настольный Chrome: системное окно установки. */
     if (installEvent) {
       installEvent.prompt();
       installEvent.userChoice.then(function () {
@@ -53,23 +78,18 @@
       });
       return;
     }
-    /* iPhone своего окна не даёт — установка только вручную из меню
-       «Поделиться». Остальным браузерам подсказываем, где искать пункт. */
     hint(view, isIOS()
-      ? ['Нажмите кнопку «Поделиться» внизу экрана — квадрат со стрелкой вверх.',
-         'Пролистайте список и выберите «На экран „Домой“».',
-         'Подтвердите — значок появится рядом с остальными приложениями.']
-      : ['Откройте меню браузера — три точки в правом верхнем углу.',
-         'Выберите «Установить приложение» или «Добавить на главный экран».',
-         'Если пункта нет, откройте приложение ещё раз через минуту: ' +
-         'браузер предлагает установку не сразу.']);
+      ? 'На iPhone значок ставится вручную: кнопка «Поделиться» внизу экрана → ' +
+        '«На экран „Домой“» → «Добавить». Другого пути Apple не даёт.'
+      : 'Браузер пока не даёт установить приложение. Обычно достаточно ' +
+        'открыть его ещё раз через минуту. Если не поможет — в меню браузера ' +
+        'есть пункт «Установить приложение».');
   }
 
-  function hint(view, steps) {
+  function hint(view, text) {
     var box = view.querySelector('#installHint');
     if (!box) return;
-    box.innerHTML = '<div class="notice install-hint"><b>Как поставить значок</b>' +
-      '<ol>' + steps.map(function (s) { return '<li>' + ui.esc(s) + '</li>'; }).join('') + '</ol></div>';
+    box.innerHTML = '<div class="notice install-hint">' + ui.esc(text) + '</div>';
   }
 
   function render(root) {
@@ -96,6 +116,8 @@
         '<div class="start-bg"></div>' +
         '<div class="start-veil"></div>' +
         '<div class="start-inner">' +
+
+          installOffer() +
 
           '<div class="start-head">' +
             '<div class="brand"><img src="' + ui.asset('assets/img/logo.png') + '" alt="Норникель"></div>' +
@@ -154,6 +176,7 @@
     });
 
     ui.on(v, '[data-act="install"]', function () { doInstall(v); });
+    ui.on(v, '[data-act="install-later"]', function () { offerHidden = true; render(root); });
 
     /* Событие от браузера приходит с задержкой и уже после отрисовки —
        тогда экран перерисовывается, чтобы кнопка появилась. */
