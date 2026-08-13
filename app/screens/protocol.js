@@ -46,9 +46,10 @@
           '<button data-act="close">' + ui.I.prev + 'К результату</button>' +
         '</div>' +
         '<div class="field-error no-print" id="printNote"></div>' +
-        '<div class="footer-note no-print">Бланк откроется отдельной страницей. ' +
-        'На компьютере в окне печати выберите принтер «Сохранить как PDF»; ' +
-        'на телефоне — «Поделиться» и затем «Печать» или «Сохранить в PDF».</div>' +
+        '<div class="footer-note no-print">В окне печати выберите принтер ' +
+        '«Сохранить как PDF» — получится файл вместо распечатки. Если окно ' +
+        'печати не открылось, нажмите «Сохранить файлом»: бланк ляжет ' +
+        'в загрузки, оттуда его можно распечатать или отправить.</div>' +
       '</div>' +
       ui.tabbar('exam'));
 
@@ -136,33 +137,58 @@
       '</body></html>';
   }
 
+  /**
+   * Печать бланка, не покидая приложение.
+   *
+   * Бланк кладётся в скрытый кадр внутри страницы, и печатается кадр.
+   * Раньше здесь открывалась отдельная вкладка через window.open — и на
+   * телефоне это выходило боком: в установленном приложении вкладка
+   * открывалась поверх, а системная кнопка «назад» закрывала приложение
+   * целиком вместе со всем сеансом — фамилией и итогами экзамена.
+   * Кадр — это та же страница, из неё выйти некуда.
+   */
   function openPrintable(r, st, note) {
     var html = printableHtml(r, st);
-    var w = null;
-    try { w = window.open('', '_blank'); } catch (e) { w = null; }
 
-    if (!w || !w.document) {
-      /* Окно не открылось: блокировщик всплывающих окон либо режим
-         установленного приложения. Отдаём тот же бланк файлом. */
-      download(html, fileName(st, r));
-      say(note, 'Открыть отдельное окно не удалось — бланк сохранён файлом ' +
-                'в загрузки. Откройте его и распечатайте оттуда.', 'dim');
-      return;
+    /* Кадр от прошлой печати убираем: иначе они копятся. */
+    var old = document.getElementById('printFrame');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+
+    var frame = document.createElement('iframe');
+    frame.id = 'printFrame';
+    frame.setAttribute('aria-hidden', 'true');
+    frame.setAttribute('tabindex', '-1');
+    frame.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;height:1123px;border:0';
+    document.body.appendChild(frame);
+
+    var printed = false;
+    function go() {
+      if (printed) return;
+      printed = true;
+      try {
+        frame.contentWindow.focus();
+        frame.contentWindow.print();
+        say(note, 'Открылось окно печати. Выберите «Сохранить как PDF» — ' +
+                  'на телефоне этот пункт бывает в списке принтеров.', 'dim');
+      } catch (e) {
+        /* Часть мобильных браузеров печатать кадр не даёт. Тогда отдаём файл:
+           его можно открыть и распечатать средствами системы. */
+        download(html, fileName(st, r));
+        say(note, 'Браузер не дал вызвать печать — бланк сохранён файлом ' +
+                  'в загрузки. Откройте его и распечатайте оттуда.', 'dim');
+      }
     }
 
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
+    frame.addEventListener('load', function () { window.setTimeout(go, 300); });
 
-    var go = function () {
-      try { w.focus(); w.print(); } catch (e) { /* печать вызовет сам пользователь */ }
-    };
-    /* Печать только после вёрстки: иначе на части телефонов уходит пустая страница. */
-    if (w.document.readyState === 'complete') window.setTimeout(go, 350);
-    else w.addEventListener('load', function () { window.setTimeout(go, 350); });
+    var doc = frame.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
 
-    say(note, 'Бланк открыт отдельной страницей. Если окно печати не появилось, ' +
-              'вызовите печать сами: на телефоне — «Поделиться» → «Печать».', 'dim');
+    /* Если событие load не пришло (кадр из document.write его иногда
+       не даёт), печатаем по таймеру — вёрстка к этому моменту готова. */
+    window.setTimeout(go, 900);
   }
 
   function download(html, name) {

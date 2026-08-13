@@ -39,6 +39,13 @@
     var keep = opts && opts.keepScroll;
     var y = keep ? (window.pageYOffset || document.documentElement.scrollTop || 0) : 0;
 
+    /* Перехват кнопки «назад» действует ровно на одно состояние экрана.
+       Без сброса он оставался жить после перерисовки: со списка разделов
+       стрелка снова открывала список разделов, и выйти из режима было
+       невозможно. Состояния, которым перехват нужен, ставят его сразу
+       после вызова paint. */
+    if (VGSCH.router && VGSCH.router.setBackHandler) VGSCH.router.setBackHandler(null);
+
     clear(app);
     var view = document.createElement('div');
     view.innerHTML = html;
@@ -165,11 +172,16 @@
     exam: 'var(--exam-bg)', study: 'var(--study-bg)'
   };
 
-  /** Шапка экрана: кнопка возврата, название режима, таймер, кто проходит. */
+  /** Шапка экрана: кнопка возврата, название режима, таймер, кто проходит.
+   *
+   * Кнопка помечена data-back и возвращает на предыдущий экран по истории
+   * роутера. Атрибут data-fallback — куда уйти, если истории нет (первый
+   * экран сеанса). Экраны, у которых внутри свои состояния, перехватывают
+   * нажатие сами по селектору «.appbar [data-back]». */
   function appbar(o) {
     var person = VGSCH.state.data.person;
     return '<div class="appbar" style="--accent:' + (ACCENT[o.mode] || 'var(--text)') + '">' +
-      '<button class="nav-btn" data-nav="' + (o.back || 'start') + '" ' +
+      '<button class="nav-btn" data-back data-fallback="' + (o.back || 'start') + '" ' +
         'aria-label="Назад">' + (o.backArrow ? I.back : I.menu) + '</button>' +
       '<span class="mode-ic">' + (I[o.mode] || '') + '</span>' +
       '<h2>' + esc(o.title) + '</h2>' +
@@ -239,7 +251,33 @@
       if (confirmLeave && !confirmLeave(target)) return;
       VGSCH.router.go(target);
     });
+
+    /* Стрелка в шапке возвращает на предыдущий экран по истории роутера.
+       Раньше у неё не было обработчика вовсе, и нажатие обрабатывал общий
+       [data-nav] с жёстким «start» — из разбора слабой темы после экзамена
+       человека выбрасывало на главную. data-fallback нужен только тогда,
+       когда возвращаться некуда: это первый экран сеанса. */
+    on(root, '[data-back]', function (b) {
+      var fallback = b.dataset.fallback || 'start';
+      if (confirmLeave && !confirmLeave(fallback)) return;
+      if (!VGSCH.router.back()) VGSCH.router.go(fallback, null, { replace: true });
+    });
   }
+
+  /**
+   * Правильное окончание при числе: plural(1, ['тип','типа','типов']) → 'тип'.
+   * Формы: 1 тип, 2 типа, 5 типов.
+   */
+  function plural(n, forms) {
+    var a = Math.abs(n) % 100, b = a % 10;
+    if (a > 10 && a < 20) return forms[2];
+    if (b > 1 && b < 5) return forms[1];
+    if (b === 1) return forms[0];
+    return forms[2];
+  }
+
+  /** Число с правильным окончанием: '5 типов'. */
+  function count(n, forms) { return n + ' ' + plural(n, forms); }
 
   VGSCH.ui = {
     esc: esc, clear: clear, on: on, paint: paint, asset: asset, toTop: toTop,
@@ -247,6 +285,6 @@
     countdown: countdown, stopwatch: stopwatch,
     I: I, ACCENT: ACCENT, ACCENT_BG: ACCENT_BG,
     appbar: appbar, tabbar: tabbar, progress: progress, bar: bar, donut: donut,
-    wireNav: wireNav
+    wireNav: wireNav, plural: plural, count: count
   };
 })(window.VGSCH = window.VGSCH || {});

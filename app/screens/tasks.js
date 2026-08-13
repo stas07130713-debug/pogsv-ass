@@ -15,6 +15,9 @@
   var group = null;
   var solved = 0;
 
+  /* Формы для склонения: 1 тип, 2 типа, 5 типов. */
+  var TYPE_FORMS = ['тип', 'типа', 'типов'];
+
   function render(root) {
     current = null; group = null; solved = 0;
     renderPicker(root);
@@ -35,13 +38,14 @@
         'запуске и проверяются независимым расчётом.</p>' +
         '<div class="pick-list">' +
           '<button class="pick-item" data-group=""><span class="t">Все группы</span>' +
-            '<span class="n">' + implementedCount() + ' типов</span></button>' +
+            '<span class="n">' + ui.count(implementedCount(), TYPE_FORMS) + '</span></button>' +
           groups.map(function (g) {
             var n = types.enabled(g).filter(function (t) {
               return VGSCH.engine.generator.BUILDERS[t.id];
             }).length;
             return '<button class="pick-item" data-group="' + ui.esc(g) + '">' +
-              '<span class="t">' + ui.esc(g) + '</span><span class="n">' + n + ' типов</span></button>';
+              '<span class="t">' + ui.esc(g) + '</span>' +
+              '<span class="n">' + ui.count(n, TYPE_FORMS) + '</span></button>';
           }).join('') +
         '</div>' +
       '</div>' +
@@ -131,6 +135,8 @@
       '</div>' +
       ui.tabbar('tasks'));
 
+    /* Из условия задачи стрелка возвращает к выбору группы. */
+    VGSCH.router.setBackHandler(function () { renderPicker(root); return true; });
     ui.wireNav(v);
     VGSCH.feedback.wire(v, function () { return taskContext(t, 'Задачи'); });
     ui.on(v, '[data-act="picker"]', function () { renderPicker(root); });
@@ -309,6 +315,8 @@
       '</div>' +
       ui.tabbar('tasks')), { keepScroll: !!keepScroll });
 
+    /* Из разбора решения — тоже к выбору группы: задача уже решена. */
+    VGSCH.router.setBackHandler(function () { renderPicker(root); return true; });
     ui.wireNav(v);
     VGSCH.feedback.wire(v, function () { return taskContext(t, 'Задачи — решение'); });
     ui.on(v, '[data-step]', function (b) { renderSolution(root, parseInt(b.dataset.step, 10), true); });
