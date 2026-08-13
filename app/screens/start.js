@@ -5,6 +5,73 @@
   var ui = VGSCH.ui;
   var cfg = VGSCH.config;
 
+  /* ------------------------------------------- установка на телефон ------ */
+
+  /* Браузер сам решает, когда предложить установку, и на Android делает это
+     не всегда: пункт «Установить приложение» прячется в меню «⋮», а всплывашка
+     появляется далеко не при первом заходе. Поэтому перехватываем событие
+     и показываем свою кнопку — нажатие вызывает то же системное окно. */
+  var installEvent = null;
+  var repaint = null;   // перерисовать главный экран, когда событие придёт
+
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    installEvent = e;
+    if (repaint) repaint();
+  });
+
+  window.addEventListener('appinstalled', function () {
+    installEvent = null;
+    if (repaint) repaint();
+  });
+
+  /** Приложение уже открыто как установленное — кнопка не нужна. */
+  function installed() {
+    return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+           navigator.standalone === true;
+  }
+
+  function isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  }
+
+  function installButton() {
+    if (installed()) return '';
+    return '<button class="install-btn" data-act="install" type="button">' +
+      '<span class="ic">' + ui.I.install + '</span>' +
+      '<span class="tx"><b>Установить на телефон</b>' +
+      '<span>Значок на рабочий стол, работа без связи</span></span></button>';
+  }
+
+  function doInstall(view) {
+    /* Android и настольный Chrome: системное окно установки. */
+    if (installEvent) {
+      installEvent.prompt();
+      installEvent.userChoice.then(function () {
+        installEvent = null;
+        if (repaint) repaint();
+      });
+      return;
+    }
+    /* iPhone своего окна не даёт — установка только вручную из меню
+       «Поделиться». Остальным браузерам подсказываем, где искать пункт. */
+    hint(view, isIOS()
+      ? ['Нажмите кнопку «Поделиться» внизу экрана — квадрат со стрелкой вверх.',
+         'Пролистайте список и выберите «На экран „Домой“».',
+         'Подтвердите — значок появится рядом с остальными приложениями.']
+      : ['Откройте меню браузера — три точки в правом верхнем углу.',
+         'Выберите «Установить приложение» или «Добавить на главный экран».',
+         'Если пункта нет, откройте приложение ещё раз через минуту: ' +
+         'браузер предлагает установку не сразу.']);
+  }
+
+  function hint(view, steps) {
+    var box = view.querySelector('#installHint');
+    if (!box) return;
+    box.innerHTML = '<div class="notice install-hint"><b>Как поставить значок</b>' +
+      '<ol>' + steps.map(function (s) { return '<li>' + ui.esc(s) + '</li>'; }).join('') + '</ol></div>';
+  }
+
   function render(root) {
     var Q = VGSCH.data.questions;
     var T = VGSCH.data.taskTypes;
@@ -64,6 +131,9 @@
               : '') +
           '</div>' +
 
+          installButton() +
+          '<div id="installHint"></div>' +
+
           '<div class="start-foot">' +
             '<span>Версия ' + ui.esc(cfg.version) + '</span>' +
             '<span>Работает без интернета</span>' +
@@ -82,6 +152,14 @@
     ui.on(v, '.mode-card', function (btn) {
       VGSCH.router.go(btn.dataset.mode);
     });
+
+    ui.on(v, '[data-act="install"]', function () { doInstall(v); });
+
+    /* Событие от браузера приходит с задержкой и уже после отрисовки —
+       тогда экран перерисовывается, чтобы кнопка появилась. */
+    repaint = function () {
+      if (VGSCH.router.currentName() === 'start') render(root);
+    };
   }
 
   /* Подпись поля — отдельный слой поверх, не перехватывающий клики,
