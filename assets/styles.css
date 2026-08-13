@@ -279,6 +279,35 @@ h1, h2, h3, h4 { margin: 0; font-weight: 700; }
 .mode-card:disabled { opacity: .45; }
 
 .start-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; color: var(--text-mute); font-size: 12px; }
+
+/* --------------------------------------- установка на рабочий стол ------ */
+
+/* Своя кнопка вместо ожидания, пока браузер сам предложит установку:
+   на Android пункт спрятан в меню «⋮», и до него не доходят. */
+.install-btn {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  margin-top: 16px; padding: 11px 16px; text-align: left;
+  color: var(--text-dim);
+  background: rgba(20, 28, 39, .62);
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: var(--radius-sm);
+  -webkit-backdrop-filter: blur(10px);
+          backdrop-filter: blur(10px);
+}
+.install-btn .ic {
+  display: grid; place-items: center; flex: none;
+  width: 34px; height: 34px; border-radius: 50%;
+  color: var(--tests);
+  background: rgba(47, 128, 237, .16);
+  border: 1px solid rgba(47, 128, 237, .34);
+}
+.install-btn .tx { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.install-btn .tx b { font-size: 13.5px; color: var(--text); font-weight: 600; }
+.install-btn .tx span { font-size: 11.5px; color: var(--text-mute); }
+.install-btn:hover { border-color: var(--tests); }
+
+.install-hint ol { margin: 8px 0 0; padding-left: 20px; }
+.install-hint li { margin: 4px 0; font-size: 13px; line-height: 1.45; }
 /* Сообщения под стартовой панелью выравниваются по её ширине. */
 .start ~ .notice, .start ~ .footer-note { max-width: 760px; margin-left: auto; margin-right: auto; }
 
@@ -937,8 +966,86 @@ body.is-modal { overflow: hidden; }
   /* Вертикальная вуаль теперь целиком в ::after — этот слой лишний. */
   .start-veil { display: none; }
 
-  /* Содержимое начинается под полосой со снимком. */
-  .start { padding-top: 72vw; }
+  /* Содержимое начинается под полосой со снимком.
+     Главный экран должен помещаться целиком, без прокрутки: это первое,
+     что видит человек, и листать здесь нечего. Поэтому полоса со снимком
+     ужата, пояснительный абзац убран, а отступы и подписи сжаты. */
+  .start { padding-top: 58vw; padding-bottom: 8px; }
+  .start .lead { display: none; }
+  .start .who-line { display: block; margin: 8px 0 0; font-size: 12.5px; }
+  .brand { margin-bottom: 12px; }
+  .brand img { height: 26px; }
+  .start h1 { font-size: 18px; }
+  .start .unit { font-size: 21px; }
+  .pick-label { margin: 12px 0 8px; font-size: 12.5px; }
+  .start-foot { margin-top: 12px; font-size: 11px; }
+  .install-btn { margin-top: 12px; padding: 9px 13px; gap: 10px; }
+  .install-btn .ic { width: 30px; height: 30px; }
+  .install-btn .ic svg { width: 17px; height: 17px; }
+
+  /* Полоса со снимком короче — вуаль сдвигается вместе с ней. */
+  body[data-screen="start"]::after {
+    background: linear-gradient(180deg,
+      rgba(5, 8, 12, 0)    0,
+      rgba(5, 8, 12, .04) 28vw,
+      rgba(5, 8, 12, .55) 46vw,
+      rgba(7, 11, 17, .95) 55vw,
+      rgba(7, 11, 17, 1)   60vw);
+  }
+  body[data-screen="start"]::before { background-size: 118% auto; }
+}
+
+/* Невысокий телефон (360×640 и подобные): места по вертикали заметно меньше,
+   а главный экран всё равно должен помещаться целиком. Полоса со снимком
+   ужимается ещё, карточки режимов становятся плотнее. */
+@media (max-width: 620px) and (orientation: portrait) and (max-height: 720px) {
+  .start { padding-top: 42vw; }
+  body[data-screen="start"]::after {
+    background: linear-gradient(180deg,
+      rgba(5, 8, 12, 0)    0,
+      rgba(5, 8, 12, .06) 20vw,
+      rgba(5, 8, 12, .60) 33vw,
+      rgba(7, 11, 17, .96) 40vw,
+      rgba(7, 11, 17, 1)   44vw);
+  }
+  body[data-screen="start"]::before { background-size: 150% auto; background-position: top 0 left 42%; }
+
+  .brand { margin-bottom: 8px; }
+  .brand img { height: 22px; }
+  .start h1 { font-size: 16.5px; }
+  .start .unit { font-size: 19px; }
+  .start .who-line { display: none; }
+  .pick-label { margin: 9px 0 6px; font-size: 12px; }
+  .modes { gap: 7px; }
+  .mode-card { padding: 9px 7px; gap: 4px; }
+  .mode-card .ic svg { width: 19px; height: 19px; }
+  .mode-card .nm { font-size: 11.5px; }
+  .mode-card .ds { font-size: 10px; }
+  .install-btn { margin-top: 9px; padding: 7px 11px; }
+  .install-btn .ic { width: 26px; height: 26px; }
+  .install-btn .tx b { font-size: 12.5px; }
+  .install-btn .tx span { font-size: 10.5px; }
+  .start-foot { margin-top: 8px; font-size: 10.5px; }
+}
+
+/* Самые низкие экраны (320×568 — iPhone SE первого поколения и подобные).
+   Снимок остаётся, но полосой уже совсем узкой: лучше меньше кадра,
+   чем прокрутка на главном экране. */
+@media (max-width: 620px) and (orientation: portrait) and (max-height: 620px) {
+  .start { padding-top: 32vw; }
+  body[data-screen="start"]::after {
+    background: linear-gradient(180deg,
+      rgba(5, 8, 12, 0)    0,
+      rgba(5, 8, 12, .08) 14vw,
+      rgba(5, 8, 12, .62) 25vw,
+      rgba(7, 11, 17, .96) 30vw,
+      rgba(7, 11, 17, 1)   34vw);
+  }
+  body[data-screen="start"]::before { background-size: 185% auto; background-position: top 0 left 40%; }
+
+  .pick-label { margin: 7px 0 5px; }
+  .mode-card { padding: 7px 6px; }
+  .start-foot { margin-top: 6px; }
 }
 
 /* Сенсорный экран любой ширины — телефон, планшет, панель в учебном классе.
