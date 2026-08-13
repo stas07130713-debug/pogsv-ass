@@ -40,29 +40,49 @@
         '</div>' +
 
         '<div class="actions no-print">' +
-          '<button class="ok" data-act="print">' + ui.I.print + 'Скачать PDF</button>' +
-          '<button data-act="save">' + ui.I.copy + 'Сохранить файлом</button>' +
+          '<button class="ok" data-act="pdf">' + ui.I.print + 'Скачать PDF</button>' +
           '<div class="spacer"></div>' +
           '<button data-act="close">' + ui.I.prev + 'К результату</button>' +
         '</div>' +
         '<div class="field-error no-print" id="printNote"></div>' +
-        '<div class="footer-note no-print">В окне печати выберите принтер ' +
-        '«Сохранить как PDF» — получится файл вместо распечатки. Если окно ' +
-        'печати не открылось, нажмите «Сохранить файлом»: бланк ляжет ' +
-        'в загрузки, оттуда его можно распечатать или отправить.</div>' +
+        '<div class="footer-note no-print">Файл сохраняется в загрузки — ' +
+        'и на компьютере, и на телефоне. Ничего выбирать не нужно.</div>' +
       '</div>' +
       ui.tabbar('exam'));
 
     var note = v.querySelector('#printNote');
 
-    ui.on(v, '[data-act="print"]', function () { openPrintable(r, st, note); });
-    ui.on(v, '[data-act="save"]', function () {
-      download(printableHtml(r, st), fileName(st, r));
-      say(note, 'Файл сохранён в загрузки. Откройте его и распечатайте ' +
-                'или сохраните в PDF средствами телефона.', 'dim');
-    });
+    ui.on(v, '[data-act="pdf"]', function (btn) { savePdf(r, st, btn, note); });
     ui.on(v, '[data-act="close"]', function () { VGSCH.router.go('exam'); });
     ui.wireNav(v);
+  }
+
+  /* --------------------------------------------------------------- PDF ---- */
+
+  function savePdf(r, st, btn, note) {
+    btn.disabled = true;
+    say(note, 'Готовим файл…', 'dim');
+    /* Отрисовка листов заметно нагружает страницу, поэтому отдаём браузеру
+       кадр на перерисовку кнопки — иначе «Готовим файл…» не успевает
+       появиться и выглядит, будто нажатие не сработало. */
+    window.setTimeout(function () {
+      try {
+        var pages = renderPages(r, st);
+        VGSCH.pdf.save(VGSCH.pdf.fromCanvases(pages), pdfName(st, r));
+        say(note, 'Файл «' + pdfName(st, r) + '» сохранён в загрузки.', 'ok');
+      } catch (e) {
+        say(note, 'Не удалось собрать файл: ' + (e && e.message ? e.message : 'ошибка') +
+                  '. Протокол можно распечатать со страницы.', 'bad');
+      }
+      btn.disabled = false;
+    }, 60);
+  }
+
+  function pdfName(st, r) {
+    var d = r.finishedAt || new Date();
+    var p = function (n) { return String(n).padStart(2, '0'); };
+    var who = String(st.person || 'протокол').replace(/[^0-9A-Za-zА-Яа-яЁё]+/g, '-').replace(/^-|-$/g, '');
+    return 'Протокол-' + who + '-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '.pdf';
   }
 
   /* ------------------------------------------------------------- бланк ---- */
@@ -125,135 +145,243 @@
       '</div>';
   }
 
-  /* ------------------------------------------------------------ печать ---- */
+  /* ------------------------------------------------ отрисовка листов ---- */
 
-  /** Самостоятельный документ: свои стили внутри, ничего не подгружает. */
-  function printableHtml(r, st) {
-    return '<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8">' +
-      '<meta name="viewport" content="width=device-width, initial-scale=1">' +
-      '<title>Протокол проверки знаний — ' + ui.esc(st.person || '') + '</title>' +
-      '<style>' + PRINT_CSS + '</style></head><body>' +
-      '<div class="protocol">' + protocolMarkup(r, st) + '</div>' +
-      '</body></html>';
-  }
+  /* Лист A4 при 150 точках на дюйм: достаточно для печати и не раздувает файл.
+     Все размеры ниже — в этих же точках холста, поэтому вынесены в константы:
+     менять масштаб можно одним числом. */
+  var DPI = 150;
+  var PAGE_W = Math.round(8.27 * DPI);   // 1240
+  var PAGE_H = Math.round(11.69 * DPI);  // 1754
+  var MARGIN = Math.round(0.55 * DPI);   // поля листа
+  var FONT = '"Segoe UI", Roboto, Arial, sans-serif';
+
+  var INK = '#14181d';        // основной текст
+  var INK_SOFT = '#55606c';   // подписи полей и заголовки столбцов
+  var RULE = '#c2c8d0';       // линейки таблиц
+  var ACCENT = '#b8500f';     // итоговый процент
 
   /**
-   * Печать бланка, не покидая приложение.
-   *
-   * Бланк кладётся в скрытый кадр внутри страницы, и печатается кадр.
-   * Раньше здесь открывалась отдельная вкладка через window.open — и на
-   * телефоне это выходило боком: в установленном приложении вкладка
-   * открывалась поверх, а системная кнопка «назад» закрывала приложение
-   * целиком вместе со всем сеансом — фамилией и итогами экзамена.
-   * Кадр — это та же страница, из неё выйти некуда.
+   * Готовит страницы протокола.
+   * Возвращает массив холстов: сколько листов вышло, столько и страниц в PDF.
    */
-  function openPrintable(r, st, note) {
-    var html = printableHtml(r, st);
+  function renderPages(r, st) {
+    var pages = [];
+    var ctx = newPage(pages);
+    var y = MARGIN;
 
-    /* Кадр от прошлой печати убираем: иначе они копятся. */
-    var old = document.getElementById('printFrame');
-    if (old && old.parentNode) old.parentNode.removeChild(old);
-
-    var frame = document.createElement('iframe');
-    frame.id = 'printFrame';
-    frame.setAttribute('aria-hidden', 'true');
-    frame.setAttribute('tabindex', '-1');
-    frame.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;height:1123px;border:0';
-    document.body.appendChild(frame);
-
-    var printed = false;
-    function go() {
-      if (printed) return;
-      printed = true;
-      try {
-        frame.contentWindow.focus();
-        frame.contentWindow.print();
-        say(note, 'Открылось окно печати. Выберите «Сохранить как PDF» — ' +
-                  'на телефоне этот пункт бывает в списке принтеров.', 'dim');
-      } catch (e) {
-        /* Часть мобильных браузеров печатать кадр не даёт. Тогда отдаём файл:
-           его можно открыть и распечатать средствами системы. */
-        download(html, fileName(st, r));
-        say(note, 'Браузер не дал вызвать печать — бланк сохранён файлом ' +
-                  'в загрузки. Откройте его и распечатайте оттуда.', 'dim');
-      }
+    function need(h) {
+      /* Не влезает — начинаем новый лист. */
+      if (y + h <= PAGE_H - MARGIN) return;
+      ctx = newPage(pages);
+      y = MARGIN;
     }
 
-    frame.addEventListener('load', function () { window.setTimeout(go, 300); });
+    /* ---- шапка ---- */
+    ctx.fillStyle = INK;
+    ctx.font = '700 ' + px(13) + 'px ' + FONT;
+    ctx.fillText('ПРОТОКОЛ ПРОВЕРКИ ЗНАНИЙ', MARGIN, y + px(13));
+    y += px(30);
 
-    var doc = frame.contentWindow.document;
-    doc.open();
-    doc.write(html);
-    doc.close();
+    /* ---- кто и когда ---- */
+    var rows = [
+      ['ФИО:', st.person || '—'],
+      ['Номер отделения:', st.unit || '—'],
+      ['Должность:', st.position || '—'],
+      ['Дата:', ui.dateTime(r.finishedAt || new Date())],
+      ['Затрачено:', ui.clock(r.elapsedSec) +
+        (cfg.exam.timeLimitMin ? ' из ' + cfg.exam.timeLimitMin + ':00' : '')]
+    ];
+    var labelW = px(115);
+    rows.forEach(function (row) {
+      ctx.font = px(10.5) + 'px ' + FONT;
+      ctx.fillStyle = INK_SOFT;
+      ctx.fillText(row[0], MARGIN, y + px(10.5));
+      ctx.font = '600 ' + px(10.5) + 'px ' + FONT;
+      ctx.fillStyle = INK;
+      ctx.fillText(row[1], MARGIN + labelW, y + px(10.5));
+      y += px(17);
+    });
+    y += px(12);
 
-    /* Если событие load не пришло (кадр из document.write его иногда
-       не даёт), печатаем по таймеру — вёрстка к этому моменту готова. */
-    window.setTimeout(go, 900);
+    /* ---- сводная таблица ---- */
+    var W = PAGE_W - MARGIN * 2;
+    var colScore = [W - px(255), px(105), px(70), px(80)];
+    y = table(ctx, y, MARGIN, colScore,
+      ['Раздел', 'Результат', 'Порог', '%'],
+      [
+        ['Тесты (' + r.qTotal + ' вопросов)', r.qCorrect + ' / ' + r.qTotal,
+         String(cfg.exam.passQuestions), Math.round(r.qCorrect / r.qTotal * 100) + ' %'],
+        ['Задачи (' + r.tTotal + ' задачи)', r.tCorrect + ' / ' + r.tTotal,
+         String(cfg.exam.passTasks), Math.round(r.tCorrect / r.tTotal * 100) + ' %'],
+        ['Общий результат', r.totalCorrect + ' / ' + r.totalItems, '—', r.percent + ' %']
+      ],
+      [false, true, true, true], true);
+
+    y += px(14);
+    ctx.font = '700 ' + px(11.5) + 'px ' + FONT;
+    ctx.fillStyle = r.passed ? '#1d7a44' : '#a8322f';
+    ctx.fillText(r.passed ? 'Экзамен сдан.' : 'Экзамен не сдан.', MARGIN, y + px(11.5));
+    y += px(26);
+
+    /* ---- ошибки ---- */
+    var errors = r.details.filter(function (d) { return !d.correct; });
+    if (!errors.length) {
+      ctx.font = px(10.5) + 'px ' + FONT;
+      ctx.fillStyle = INK;
+      ctx.fillText('Все вопросы и задачи отвечены верно.', MARGIN, y + px(10.5));
+      y += px(24);
+    } else {
+      need(px(60));
+      ctx.font = '700 ' + px(12) + 'px ' + FONT;
+      ctx.fillStyle = INK;
+      ctx.fillText('ОШИБКИ', MARGIN, y + px(12));
+      y += px(22);
+
+      /* Ширины в тех же «пунктах», что и шрифты: № узкий, ответу хватает
+         трети листа, остальное отдаётся тексту вопроса — он длиннее всего. */
+      var colErr = [px(22), W - px(22) - px(150), px(150)];
+      y = header(ctx, y, MARGIN, colErr, ['№', 'Вопрос', 'Правильный ответ'], [false, false, false]);
+
+
+      errors.forEach(function (d) {
+        var pad = px(7);
+        var qLines = wrap(ctx, d.text, colErr[1] - pad * 2, px(10));
+        var npaLines = d.npa ? wrap(ctx, d.npa, colErr[1] - pad * 2, px(8.5)) : [];
+        var aLines = wrap(ctx, d.right, colErr[2] - pad * 2, px(10));
+        var h = Math.max(qLines.length * px(14) + npaLines.length * px(12),
+                         aLines.length * px(14)) + px(12);
+
+        /* Строка целиком переносится на следующий лист — разрывать нельзя. */
+        if (y + h > PAGE_H - MARGIN) {
+          ctx = newPage(pages);
+          y = MARGIN;
+          y = header(ctx, y, MARGIN, colErr, ['№', 'Вопрос', 'Правильный ответ'], [false, false, false]);
+
+        }
+
+        var x = MARGIN;
+        ctx.fillStyle = INK;
+        ctx.font = '600 ' + px(10) + 'px ' + FONT;
+        ctx.fillText(String(d.n), x + pad, y + px(10) + px(4));
+
+        x += colErr[0];
+        ctx.font = px(10) + 'px ' + FONT;
+        var yy = y + px(4);
+        qLines.forEach(function (line) { yy += px(14); ctx.fillText(line, x + pad, yy); });
+        if (npaLines.length) {
+          ctx.font = px(8.5) + 'px ' + FONT;
+          ctx.fillStyle = '#6b7480';
+          npaLines.forEach(function (line) { yy += px(12); ctx.fillText(line, x + pad, yy); });
+        }
+
+        x += colErr[1];
+        ctx.fillStyle = INK;
+        ctx.font = px(10) + 'px ' + FONT;
+        var ya = y + px(4);
+        aLines.forEach(function (line) { ya += px(14); ctx.fillText(line, x + pad, ya); });
+
+        y += h;
+        line(ctx, MARGIN, y, PAGE_W - MARGIN, y, RULE);
+      });
+      y += px(20);
+    }
+
+    /* ---- подписи ---- */
+    need(px(70));
+    ctx.font = px(9.5) + 'px ' + FONT;
+    ctx.fillStyle = '#47505a';
+    ctx.fillText('Проверяемый ____________ / ' + (st.person || '') + ' /', MARGIN, y + px(30));
+    ctx.fillText('Проверяющий ____________ / ____________ /', MARGIN, y + px(52));
+
+    return pages;
   }
 
-  function download(html, name) {
-    var blob = new Blob(['﻿', html], { type: 'text/html;charset=utf-8' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  /* Перевод «пунктов макета» в точки холста: вёрстка задана в тех же числах,
+     что и на экране, а холст крупнее ровно во столько раз. */
+  function px(pt) { return Math.round(pt * DPI / 72 * 1.0); }
+
+  function newPage(pages) {
+    var c = document.createElement('canvas');
+    c.width = PAGE_W;
+    c.height = PAGE_H;
+    var ctx = c.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, PAGE_W, PAGE_H);
+    ctx.textBaseline = 'alphabetic';
+    pages.push(c);
+    return ctx;
   }
 
-  function fileName(st, r) {
-    var d = r.finishedAt || new Date();
-    var p = function (n) { return String(n).padStart(2, '0'); };
-    var who = String(st.person || 'протокол').replace(/[^0-9A-Za-zА-Яа-яЁё]+/g, '-').replace(/^-|-$/g, '');
-    return 'Протокол-' + who + '-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '.html';
+  function line(ctx, x1, y1, x2, y2, color) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1 + 0.5);
+    ctx.lineTo(x2, y2 + 0.5);
+    ctx.stroke();
+  }
+
+  /** Перенос текста по ширине колонки. size — уже в точках холста. */
+  function wrap(ctx, text, width, size) {
+    ctx.font = size + 'px ' + FONT;
+    var words = String(text || '').split(/\s+/);
+    var lines = [];
+    var cur = '';
+    words.forEach(function (w) {
+      var probe = cur ? cur + ' ' + w : w;
+      if (ctx.measureText(probe).width <= width || !cur) cur = probe;
+      else { lines.push(cur); cur = w; }
+    });
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
+  function header(ctx, y, x0, cols, titles, right) {
+    var pad = px(7);
+    ctx.font = px(9.5) + 'px ' + FONT;
+    ctx.fillStyle = INK_SOFT;
+    var x = x0;
+    titles.forEach(function (t, i) {
+      ctx.textAlign = right[i] ? 'right' : 'left';
+      ctx.fillText(t, right[i] ? x + cols[i] - pad : x + pad, y + px(12));
+      x += cols[i];
+    });
+    ctx.textAlign = 'left';
+    y += px(18);
+    line(ctx, x0, y, x0 + cols.reduce(function (a, b) { return a + b; }, 0), y, RULE);
+    return y;
+  }
+
+  function table(ctx, y, x0, cols, titles, data, right, lastBold) {
+    y = header(ctx, y, x0, cols, titles, right);
+    var pad = px(7);
+    var total = cols.reduce(function (a, b) { return a + b; }, 0);
+
+    data.forEach(function (row, ri) {
+      var last = lastBold && ri === data.length - 1;
+      var x = x0;
+      row.forEach(function (cell, ci) {
+        /* Итоговая строка целиком жирная, числовые колонки — полужирные. */
+        ctx.fillStyle = (last && ci === row.length - 1) ? ACCENT : INK;
+        ctx.font = (last ? '700 ' : (ci > 0 ? '600 ' : '')) + px(10) + 'px ' + FONT;
+        ctx.textAlign = right[ci] ? 'right' : 'left';
+        ctx.fillText(cell, right[ci] ? x + cols[ci] - pad : x + pad, y + px(15));
+        x += cols[ci];
+      });
+      ctx.textAlign = 'left';
+      y += px(21);
+      line(ctx, x0, y, x0 + total, y, RULE);
+    });
+    return y;
   }
 
   function say(node, text, kind) {
     if (!node) return;
     node.textContent = text;
-    node.style.color = kind === 'bad' ? 'var(--bad)' : 'var(--text-dim)';
+    node.style.color = kind === 'bad' ? 'var(--bad)'
+                     : kind === 'ok' ? 'var(--ok)' : 'var(--text-dim)';
   }
-
-  /* Стили печатного документа. Держатся здесь, а не в общем файле: документ
-     обязан быть самодостаточным — он открывается из blob и ничего не грузит. */
-  var PRINT_CSS = [
-    '@page { size: A4 portrait; margin: 14mm 12mm; }',
-    'body { margin: 0; background: #fff; color: #14181d;',
-    '  font: 11pt/1.4 "Segoe UI", Arial, sans-serif; }',
-    '.protocol { max-width: 190mm; margin: 0 auto; padding: 10px 12px; }',
-    'h3 { font-size: 12.5pt; margin: 0 0 10px; letter-spacing: .4px; }',
-    'h3.h-errors { margin-top: 16px; }',
-    'dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px;',
-    '  margin: 0 0 12px; font-size: 10.5pt; }',
-    'dt { color: #55606c; }',
-    'dd { margin: 0; font-weight: 600; }',
-    'table { width: 100%; border-collapse: collapse; table-layout: fixed;',
-    '  margin-bottom: 6px; }',
-    'th, td { border-bottom: 1px solid #c9cdd3; padding: 5px 4px; text-align: left;',
-    '  font-size: 10pt; vertical-align: top; overflow-wrap: anywhere; }',
-    'th { color: #55606c; font-weight: 500; }',
-    'th.r { text-align: right; }',
-    'td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }',
-    'tr.total td, tr.total th { border-top: 2px solid #98a1ac; border-bottom: none;',
-    '  font-weight: 700; }',
-    '.accent { color: #b8500f; }',
-    '.verdict-line { margin: 10px 0 0; font-weight: 700; }',
-    '.t-errors .c-n { width: 7%; }',
-    '.t-errors .c-q { width: 60%; }',
-    '.t-errors .c-a { width: 33%; }',
-    '.t-errors tr { break-inside: avoid; page-break-inside: avoid; }',
-    '.src { display: block; margin-top: 3px; font-size: 8.5pt; color: #6b7480; }',
-    '.sign { margin-top: 22px; display: flex; justify-content: space-between;',
-    '  gap: 18px; font-size: 9.5pt; color: #47505a; }',
-    '@media screen and (max-width: 620px) {',
-    '  body { font-size: 15px; }',
-    '  .protocol { padding: 14px 12px; }',
-    '  th, td { font-size: 12.5px; padding: 5px 3px; }',
-    '  .sign { flex-direction: column; gap: 12px; }',
-    '}'
-  ].join('\n');
 
   VGSCH.router.register('protocol', { render: render });
 })(window.VGSCH = window.VGSCH || {});
