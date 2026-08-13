@@ -38,10 +38,13 @@
             '<p class="lead">Учебно-тренировочное приложение для подготовки к аттестации ' +
               'и проверки знаний горноспасателей.</p>' +
 
-            fieldText('fio', 'Фамилия и инициалы', 'Иванов И. И.', st.person) +
-            fieldSelect('unit', 'Номер отделения', cfg.units, st.unit) +
-            fieldSelect('position', 'Должность', cfg.positions, st.position) +
-            '<div class="field-error" id="formError"></div>' +
+            /* Фамилия, отделение и должность спрашиваются в «Экзамене»:
+               они нужны только для протокола. Для тренировки в «Тестах»
+               и «Задачах» набирать их каждый раз заново незачем. */
+            (st.person
+              ? '<p class="lead who-line">Вы вошли как <b>' + ui.esc(st.person) + '</b>' +
+                (st.unit ? ', отделение ' + ui.esc(st.unit) : '') + '.</p>'
+              : '') +
           '</div>' +
 
           '<div class="pick-label">Выберите режим работы:</div>' +
@@ -74,28 +77,9 @@
         : ''));
     /* Нижняя панель на главном экране не нужна: карточки режимов ведут туда же. */
 
-    var fio = v.querySelector('#fio');
-    var err = v.querySelector('#formError');
-    fio.focus();
-
-    v.querySelector('#unit').addEventListener('change', function (e) {
-      VGSCH.state.setUnit(e.target.value);
-    });
-    v.querySelector('#position').addEventListener('change', function (e) {
-      VGSCH.state.setPosition(e.target.value);
-    });
-    fio.addEventListener('input', function (e) {
-      VGSCH.state.setPerson(e.target.value);
-      err.textContent = '';
-    });
-
+    /* Проверки на заполненность здесь больше нет: в тесты и задачи пускаем
+       сразу. Фамилию спросит экран «Экзамен» — там она и нужна. */
     ui.on(v, '.mode-card', function (btn) {
-      if (!VGSCH.state.isIdentified()) {
-        err.textContent = 'Укажите фамилию и инициалы — они попадут в протокол.';
-        fio.focus();
-        return;
-      }
-      VGSCH.state.setPosition(v.querySelector('#position').value);
       VGSCH.router.go(btn.dataset.mode);
     });
   }

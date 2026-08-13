@@ -27,7 +27,94 @@
     var saved = VGSCH.state.lastExam();
     if (saved && !(params && params.fresh)) { renderResult(root, saved, true); return; }
 
+    /* Данные проверяемого спрашиваются здесь, а не на главной: в протокол
+       они попадают только с экзамена, а для тренировки в тестах и задачах
+       набирать фамилию каждый раз незачем. */
+    if (!VGSCH.state.isIdentified()) { renderIdentify(root); return; }
+
     startExam(root);
+  }
+
+  /* ------------------------------------------------------ кто сдаёт ------ */
+
+  function renderIdentify(root) {
+    var st = VGSCH.state.data;
+    if (!st.unit) VGSCH.state.setUnit(cfg.unitDefault);
+    if (!st.position) VGSCH.state.setPosition(cfg.positionDefault);
+
+    var v = ui.paint(root,
+      ui.appbar({ mode: 'exam', title: 'Экзамен', backArrow: true }) +
+      '<div class="panel" style="--accent:var(--exam)">' +
+        '<h3 style="margin-bottom:6px">Кто сдаёт экзамен</h3>' +
+        '<p class="muted" style="margin:0 0 16px">Эти данные попадут в протокол. ' +
+        'Для тренировки в «Тестах» и «Задачах» они не нужны.</p>' +
+
+        field('fio', 'Фамилия и инициалы', 'Иванов И. И.', st.person) +
+        select('unit', 'Номер отделения', cfg.units, st.unit) +
+        select('position', 'Должность', cfg.positions, st.position) +
+        '<div class="field-error" id="formError"></div>' +
+
+        '<div class="actions">' +
+          '<button data-nav="start">' + ui.I.home + 'Главная</button>' +
+          '<div class="spacer"></div>' +
+          '<button class="primary" style="--accent:var(--exam)" data-act="begin">' +
+            'Начать экзамен' + ui.I.next + '</button>' +
+        '</div>' +
+        '<div class="footer-note">' + cfg.exam.questionCount + ' вопросов и ' +
+          ui.count(cfg.exam.taskCount, ['задача', 'задачи', 'задач']) +
+          (cfg.exam.timeLimitMin ? ', ' + cfg.exam.timeLimitMin + ' минут' : '') + '.</div>' +
+      '</div>' +
+      ui.tabbar('exam'));
+
+    ui.wireNav(v);
+
+    var fio = v.querySelector('#fio');
+    var err = v.querySelector('#formError');
+    fio.focus();
+
+    fio.addEventListener('input', function (e) {
+      VGSCH.state.setPerson(e.target.value);
+      err.textContent = '';
+    });
+    v.querySelector('#unit').addEventListener('change', function (e) { VGSCH.state.setUnit(e.target.value); });
+    v.querySelector('#position').addEventListener('change', function (e) { VGSCH.state.setPosition(e.target.value); });
+
+    function begin() {
+      if (!VGSCH.state.isIdentified()) {
+        err.textContent = 'Укажите фамилию и инициалы — они попадут в протокол.';
+        fio.focus();
+        return;
+      }
+      startExam(root);
+    }
+    /* Ввод с клавиатуры телефона тоже начинает экзамен. */
+    fio.addEventListener('keydown', function (e) { if (e.key === 'Enter') begin(); });
+    ui.on(v, '[data-act="begin"]', begin);
+  }
+
+  /* Подпись поля лежит отдельным слоем поверх и не перехватывает нажатия,
+     а само поле занимает всю площадь рамки — иначе часть рамки не кликается. */
+  function field(id, label, placeholder, value) {
+    return '<div class="field"><div class="field-box">' +
+      '<span class="cap">' + ui.esc(label) + '</span>' +
+      '<input type="text" id="' + id + '" autocomplete="off" spellcheck="false" maxlength="60" ' +
+        'aria-label="' + ui.esc(label) + '" placeholder="' + ui.esc(placeholder) + '" ' +
+        'value="' + ui.esc(value) + '">' +
+      '</div></div>';
+  }
+
+  /* Пустого пункта с прочерком нет: роль «не указано» играют обычные
+     значения «нет» и «Другая должность». */
+  function select(id, label, options, value) {
+    return '<div class="field"><div class="field-box is-select">' +
+      '<span class="cap">' + ui.esc(label) + '</span>' +
+      '<select id="' + id + '" aria-label="' + ui.esc(label) + '">' +
+        options.map(function (o) {
+          return '<option' + (o === value ? ' selected' : '') + '>' + ui.esc(o) + '</option>';
+        }).join('') +
+      '</select>' +
+      '<span class="ic">' + ui.I.chev + '</span>' +
+      '</div></div>';
   }
 
   function startExam(root) {
@@ -199,13 +286,15 @@
               '<span>' + ui.esc(text) + '</span></button>';
           }).join('') +
         '</div>' +
-        VGSCH.feedback.button() +
+        /* Кнопки раньше обращения об ошибке: главное действие не должно
+           уезжать вниз за второстепенной кнопкой. */
         '<div class="actions">' +
           '<button data-act="prev"' + (index === 0 ? ' disabled' : '') + '>' + ui.I.prev + 'Назад</button>' +
           '<div class="spacer"></div>' +
           '<button class="primary" data-act="next">' +
             (last ? 'К общему прогрессу' : 'Далее') + ui.I.next + '</button>' +
         '</div>' +
+        VGSCH.feedback.button() +
       '</div>' +
       ui.tabbar('exam'));
 
@@ -271,13 +360,13 @@
                   (o.value ? '1' : '0') + '"><span class="marker"></span>' +
                   '<span class="let">' + 'АБ'[i] + '.</span><span>' + ui.esc(o.label) + '</span></button>';
               }).join('') + '</div>') +
-        VGSCH.feedback.button() +
         '<div class="actions">' +
           '<button data-act="prev"' + (index === 0 ? ' disabled' : '') + '>' + ui.I.prev + 'Назад</button>' +
           '<div class="spacer"></div>' +
           '<button class="primary" data-act="next">' +
             (last ? 'К общему прогрессу' : 'Далее') + ui.I.next + '</button>' +
         '</div>' +
+        VGSCH.feedback.button() +
       '</div>' +
       ui.tabbar('exam'));
 
@@ -299,6 +388,14 @@
         var raw = String(inp.value).trim().replace(',', '.');
         var num = parseFloat(raw);
         run.tAnswers[index] = (raw !== '' && isFinite(num)) ? num : undefined;
+      });
+      /* Кнопка ввода на клавиатуре телефона переходит дальше. Без этого
+         приходилось сворачивать клавиатуру, чтобы добраться до «Далее». */
+      inp.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        inp.blur();
+        if (last) renderHub(root); else renderTask(root, index + 1);
       });
     }
     ui.on(v, '.option', function (b) {

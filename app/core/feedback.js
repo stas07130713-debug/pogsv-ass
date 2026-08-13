@@ -207,9 +207,20 @@
     btn.disabled = true;
     btn.classList.add('is-busy');
     note(err, 'Отправляем…', 'dim');
-    postSilently(f, values, function () {
-      success(box, 'Обращение отправлено', 'Спасибо. Разработчик увидит его вместе с текстом вопроса и вашими данными.');
-    });
+
+    post(f, values,
+      function () {
+        success(box, 'Обращение отправлено',
+                'Спасибо. Разработчик увидит его вместе с текстом вопроса и вашими данными.');
+      },
+      function (why) {
+        /* Честно говорим, что не дошло: раньше «Отправлено» показывалось
+           независимо от результата, и обращения молча терялись. */
+        btn.disabled = false;
+        btn.classList.remove('is-busy');
+        note(err, 'Отправить не удалось (' + why + '). Нажмите «Скопировать» — ' +
+                  'обращение уйдёт письмом на ' + email() + '.', 'bad');
+      });
   }
 
   /** Пары «поле формы → значение». Незаданные идентификаторы пропускаются. */
@@ -242,22 +253,42 @@
     return 'https://docs.google.com/forms/d/e/' + f.id + '/viewform?usp=pp_url&' + q;
   }
 
+  function action(f) {
+    return 'https://docs.google.com/forms/d/e/' + f.id + '/formResponse';
+  }
+
   /**
-   * Отправка без открытия вкладки: обычная HTML-форма в скрытый iframe.
-   * Ответ Google прочитать нельзя (чужой домен), поэтому успех считается
-   * по факту отправки — это штатный приём для форм без API.
+   * Отправка в форму без открытия вкладки — обычной формой в скрытый кадр.
+   *
+   * Почему именно так, а не через fetch. Отправить-то fetch отправляет, но
+   * на чужой домен он уходит в режиме no-cors, и ответ приходит «непрозрачным»:
+   * ни кода, ни тела прочитать нельзя, обещание выполняется одинаково и когда
+   * Google принял ответ, и когда отказал. Пользователь видел «Отправлено»
+   * вслепую. У кадра же есть событие load — оно означает, что ответ реально
+   * получен и отрисован.
+   *
+   * Кадр и форма убираются только после load (или по истечении ожидания):
+   * если снести их раньше, браузер обрывает запрос на полпути.
    */
-  function postSilently(f, values, done) {
-    var frameName = 'vgsch-form-sink';
+  function post(f, values, done, fail) {
+    var name = 'vgsch-form-sink-' + Date.now();
+
     var frame = document.createElement('iframe');
-    frame.name = frameName;
-    frame.style.display = 'none';
+    /* Имя ставится атрибутом и до, и после вставки в документ: если браузер
+       не найдёт кадр с таким именем, форма уйдёт в новое окно, а его на
+       телефоне съест блокировщик всплывающих окон — и обращение потеряется. */
+    frame.setAttribute('name', name);
+    frame.setAttribute('aria-hidden', 'true');
+    frame.setAttribute('tabindex', '-1');
+    frame.style.cssText = 'position:absolute;left:-9999px;width:0;height:0;border:0';
     document.body.appendChild(frame);
+    frame.setAttribute('name', name);
 
     var el = document.createElement('form');
-    el.action = 'https://docs.google.com/forms/d/e/' + f.id + '/formResponse';
+    el.action = action(f);
     el.method = 'POST';
-    el.target = frameName;
+    el.target = name;
+    el.acceptCharset = 'UTF-8';
     el.style.display = 'none';
     values.forEach(function (p) {
       var i = document.createElement('input');
@@ -267,13 +298,31 @@
       el.appendChild(i);
     });
     document.body.appendChild(el);
-    el.submit();
 
-    window.setTimeout(function () {
-      el.remove();
-      frame.remove();
-      done();
-    }, 900);
+    var settled = false;
+    function finish(ok, why) {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      /* Небольшая задержка перед уборкой: ответ уже получен, но пусть кадр
+         спокойно доживёт свой цикл отрисовки. */
+      window.setTimeout(function () {
+        if (el.parentNode) el.parentNode.removeChild(el);
+        if (frame.parentNode) frame.parentNode.removeChild(frame);
+      }, 1500);
+      if (ok) done(); else fail(why);
+    }
+
+    /* В шахте связь пропадает молча — ждать бесконечно нельзя. */
+    var timer = window.setTimeout(function () { finish(false, 'нет ответа за 20 секунд'); }, 20000);
+    frame.addEventListener('load', function () { finish(true); });
+    frame.addEventListener('error', function () { finish(false, 'сеть недоступна'); });
+
+    try {
+      el.submit();
+    } catch (e) {
+      finish(false, 'браузер не дал отправить форму');
+    }
   }
 
   /** Окно после успешной отправки: одно сообщение и одна кнопка. */

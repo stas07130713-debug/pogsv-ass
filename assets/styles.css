@@ -291,8 +291,13 @@ h1, h2, h3, h4 { margin: 0; font-weight: 700; }
   background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
 }
 .pick-item:hover { border-color: var(--accent, var(--tests)); }
-.pick-item .t { font-weight: 600; }
-.pick-item .n { margin-left: auto; color: var(--text-mute); font-size: 13px; }
+.pick-item .t { font-weight: 600; min-width: 0; }
+/* Счётчик не переносится и не сжимается: на узком экране длинное название
+   раздела ломало «21 вопрос» на две строки, и правый край шёл лесенкой. */
+.pick-item .n {
+  margin-left: auto; flex: none; white-space: nowrap;
+  color: var(--text-mute); font-size: 13px; font-variant-numeric: tabular-nums;
+}
 
 /* =========================================================== кнопки ====== */
 

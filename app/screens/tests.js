@@ -52,7 +52,7 @@
   function pickItem(key, title, count) {
     return '<button class="pick-item" data-section="' + ui.esc(key) + '">' +
       '<span class="t">' + ui.esc(title) + '</span>' +
-      '<span class="n">' + count + ' вопр.</span></button>';
+      '<span class="n">' + ui.count(count, ['вопрос', 'вопроса', 'вопросов']) + '</span></button>';
   }
 
   /* ------------------------------------------------------------ подход --- */
@@ -127,6 +127,8 @@
       '</div>' +
       ui.tabbar('tests'));
 
+    /* Из вопроса стрелка возвращает к выбору раздела, а не в другой режим. */
+    VGSCH.router.setBackHandler(function () { renderPicker(root); return true; });
     ui.wireNav(v);
     VGSCH.feedback.wire(v, function () {
       return {
