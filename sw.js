@@ -37,6 +37,14 @@ var PRECACHE = [
   './assets/img/icon-maskable.jpg'
 ];
 
+/* Путь с меткой версии — ровно в том виде, в каком его запросит страница.
+   Страница подставляет ?v= ко всем ссылкам, и в хранилище должно лежать
+   то же самое: иначе запрос новой версии не найдёт заготовленный файл. */
+function versioned(url) {
+  if (url === './' || url === './index.html') return url;   // страница идёт без метки
+  return url + (url.indexOf('?') === -1 ? '?v=' + VERSION : '');
+}
+
 self.addEventListener('install', function (e) {
   e.waitUntil(
     caches.open(CACHE)
@@ -44,7 +52,7 @@ self.addEventListener('install', function (e) {
          поэтому кладём файлы по одному и молча пропускаем неудачи. */
       .then(function (cache) {
         return Promise.all(PRECACHE.map(function (url) {
-          return cache.add(new Request(url, { cache: 'reload' })).catch(function () {});
+          return cache.add(new Request(versioned(url), { cache: 'reload' })).catch(function () {});
         }));
       })
       .then(function () { return self.skipWaiting(); })
@@ -81,16 +89,24 @@ self.addEventListener('fetch', function (e) {
           return res;
         })
         .catch(function () {
-          return caches.match('./index.html', { ignoreSearch: true });
+          return caches.match('./index.html');
         })
     );
     return;
   }
 
-  /* Остальное — сначала хранилище: файлы неизменны в пределах версии.
-     ignoreSearch нужен из-за метки ?v=: в хранилище лежит чистый путь. */
+  /* Остальное — сначала хранилище, но совпадение ТОЧНОЕ, вместе с меткой ?v=.
+   *
+   * Здесь была ошибка, из-за которой обновления не доходили. Стояло
+   * ignoreSearch: true — поиск без учёта строки запроса. Метка версии при
+   * этом переставала что-либо значить: на запрос ui.js?v=1.9.2 хранилище
+   * отдавало сохранённый ui.js?v=1.8.1. Страница приходила новая, а скрипты
+   * оставались старыми, и приложение вело себя по-прежнему.
+   *
+   * С точным совпадением новая версия — это всегда промах хранилища,
+   * файл берётся из сети и кладётся уже под новым адресом. */
   e.respondWith(
-    caches.match(req, { ignoreSearch: true }).then(function (hit) {
+    caches.match(req).then(function (hit) {
       if (hit) return hit;
       return fetch(req).then(function (res) {
         if (res && res.status === 200 && res.type === 'basic') {
