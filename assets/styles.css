@@ -972,12 +972,17 @@ body.is-modal { overflow: hidden; }
    экрана обязательно: главный экран должен помещаться целиком, поэтому
    на низком телефоне полоса сама становится ниже, подрезая кадр по бокам. */
 @media (max-width: 620px) and (orientation: portrait) {
-  body[data-screen="start"] { --band: min(92vw, 36vh); }
+  /* 77vw — высота кадра при заполнении по ширине (пропорции 1180×903).
+     Выше этого значения --band поднимать нельзя: под снимком появится
+     пустая полоса. Ниже — можно: вуаль просто гасит кадр раньше. */
+  body[data-screen="start"] { --band: min(77vw, 34vh); }
 
   body[data-screen="start"]::before {
     background-image: url("img/bg-start-mobile.jpg");
-    background-size: auto var(--band);
-    background-position: top left 44%;
+    /* Кадр всегда во всю ширину экрана. Раньше высота задавалась жёстко,
+       и на узком экране картинка переставала доставать до краёв. */
+    background-size: 100% auto;
+    background-position: top center;
     background-repeat: no-repeat;
   }
   body[data-screen="start"]::after {
@@ -994,7 +999,9 @@ body.is-modal { overflow: hidden; }
   /* Содержимое начинается под полосой. Пояснительный абзац на телефоне
      убран, подписи и отступы сжаты — всё ради того, чтобы экран
      помещался без прокрутки. */
-  .start { padding-top: calc(var(--band) - 8px); padding-bottom: 8px; }
+  /* Заголовок заходит на нижний край кадра, где вуаль уже почти сплошная:
+     так надпись «Подготовка горноспасателей» стоит выше и экран не пустует. */
+  .start { padding-top: calc(var(--band) - 30px); padding-bottom: 8px; }
   .start .lead { display: none; }
   .start .who-line { display: block; margin: 8px 0 0; font-size: 12.5px; }
   .brand { margin-bottom: 8px; }
@@ -1016,7 +1023,7 @@ body.is-modal { overflow: hidden; }
 
 /* Невысокий телефон: полоса ужимается ещё, карточки становятся плотнее. */
 @media (max-width: 620px) and (orientation: portrait) and (max-height: 720px) {
-  body[data-screen="start"] { --band: min(92vw, 30vh); }
+  body[data-screen="start"] { --band: min(77vw, 31vh); }
   .brand { margin-bottom: 7px; }
   .brand img { height: 21px; }
   .start h1 { font-size: 15.5px; }
@@ -1038,7 +1045,7 @@ body.is-modal { overflow: hidden; }
 /* Самые низкие экраны (320×568 и подобные): кадр остаётся, но узкой полосой —
    лучше меньше снимка, чем прокрутка на главном экране. */
 @media (max-width: 620px) and (orientation: portrait) and (max-height: 620px) {
-  body[data-screen="start"] { --band: min(92vw, 24vh); }
+  body[data-screen="start"] { --band: min(77vw, 26vh); }
   .brand { margin-bottom: 5px; }
   .pick-label { margin: 6px 0 4px; }
   .mode-card { padding: 6px 5px; }
