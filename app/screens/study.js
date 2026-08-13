@@ -167,9 +167,12 @@
     });
     ui.on(v, '[data-act="prev"]', function () { run.index--; renderTopic(root); });
     ui.on(v, '[data-act="next"]', function () { run.index++; renderTopic(root); });
-    ui.on(v, '.appbar [data-nav]', function () {
-      if (multiSection) renderPicker(root, Q.studySections());
-      else VGSCH.router.go('start');
+    /* Через роутер, а не своим слушателем: wireNav уже слушает эту же кнопку,
+       и два обработчика на одно нажатие уводили экран на два шага сразу. */
+    VGSCH.router.setBackHandler(function () {
+      if (!multiSection) return false;      // разделов нет — пусть роутер вернёт назад сам
+      renderPicker(root, Q.studySections());
+      return true;
     });
   }
 

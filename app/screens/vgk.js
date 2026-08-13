@@ -33,9 +33,7 @@
     var v = ui.paint(root,
       ui.appbar({ mode: 'vgk', title: 'Тесты ГСР' }) +
       '<div class="panel" style="--accent:var(--study)">' +
-        '<h3 style="margin-bottom:6px">Вопросы для аттестации спасателей на ГСР</h3>' +
-        '<p class="muted" style="margin:0 0 14px">Вопросы из билетов ВГК. Порядок случайный, ' +
-        'варианты перемешиваются. Ответ виден сразу.</p>' +
+        '<h3 style="margin-bottom:12px">Вопросы для аттестации спасателей на ГСР</h3>' +
         '<div class="pick-list">' +
           '<button class="pick-item" data-topic=""><span class="t">Все темы</span>' +
             '<span class="n">' + ui.count(total, ['вопрос', 'вопроса', 'вопросов']) + '</span></button>' +
@@ -46,9 +44,7 @@
           }).join('') +
         '</div>' +
 
-        '<h3 style="margin:18px 0 6px">Или отдельный билет</h3>' +
-        '<p class="muted" style="margin:0 0 12px">Билет целиком, вопросы в том же порядке, ' +
-        'что и в бланке.</p>' +
+        '<h3 style="margin:18px 0 12px">Или отдельный билет</h3>' +
         '<div class="ticket-grid">' +
           vgk.tickets.map(function (t) {
             return '<button class="ticket-btn" data-ticket="' + t.no + '">' +

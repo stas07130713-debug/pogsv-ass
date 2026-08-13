@@ -33,7 +33,7 @@
     var sections = Q.readySections();
 
     var v = ui.paint(root,
-      ui.appbar({ mode: 'tests', title: 'Тесты' }) +
+      ui.appbar({ mode: 'tests', title: 'Вопросы' }) +
       '<div class="panel" style="--accent:var(--tests)">' +
         '<h3 style="margin-bottom:6px">Выберите раздел</h3>' +
         '<p class="muted" style="margin:0 0 14px">Вопросы задаются в случайном порядке, ' +
@@ -103,7 +103,7 @@
     var last = run.index === run.items.length - 1;
 
     var v = ui.paint(root,
-      ui.appbar({ mode: 'tests', title: 'Тесты', backArrow: true }) +
+      ui.appbar({ mode: 'tests', title: 'Вопросы', backArrow: true }) +
       ui.progress(run.index + 1, run.items.length,
                   'Вопрос ' + (run.index + 1) + ' из ' + run.items.length, 'var(--tests)') +
       (run.reason
@@ -205,7 +205,7 @@
     var pct = Math.round(correct / total * 100);
 
     var v = ui.paint(root,
-      ui.appbar({ mode: 'tests', title: 'Тесты — итог', backArrow: true }) +
+      ui.appbar({ mode: 'tests', title: 'Вопросы — итог', backArrow: true }) +
       '<div class="panel" style="--accent:var(--tests)">' +
         '<div class="summary-grid">' +
           ui.donut(pct, 'верных ответов') +
@@ -224,6 +224,8 @@
       '</div>' +
       ui.tabbar('tests'));
 
+    /* С итога стрелка возвращает к выбору раздела: подход уже закончен. */
+    VGSCH.router.setBackHandler(function () { renderPicker(root); return true; });
     ui.wireNav(v);
     ui.on(v, '[data-act="again"]', function () { startRun(root, run.section); });
     ui.on(v, '[data-act="review"]', function () { renderReview(root); });
@@ -259,6 +261,8 @@
       '</div>' +
       ui.tabbar('tests'));
 
+    /* Из разбора — обратно к итогу, а не в другой режим. */
+    VGSCH.router.setBackHandler(function () { finish(root); return true; });
     ui.wireNav(v);
     ui.on(v, '[data-act="again"]', function () { startRun(root, run.section); });
   }
