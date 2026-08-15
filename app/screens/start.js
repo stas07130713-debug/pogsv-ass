@@ -7,27 +7,20 @@
 
   /* ------------------------------------------- установка на телефон ------ */
 
-  /* Браузер сам решает, когда предложить установку, и на Android делает это
-     не всегда: пункт «Установить приложение» прячется в меню «⋮», а всплывашка
-     появляется далеко не при первом заходе. Поэтому перехватываем событие
-     и показываем свою кнопку — нажатие вызывает то же системное окно. */
-  var installEvent = null;
+  /* Событие установки перехватывается в index.html — самым первым скриптом,
+     до загрузки всех остальных. Браузер выдаёт его один раз и очень рано;
+     подписка отсюда срабатывала уже после того, как событие улетело, и кнопка
+     всегда отвечала «браузер не даёт установить». Здесь только забираем
+     готовый результат. */
+  var install = window.VGSCH.install || (window.VGSCH.install = { event: null });
   var repaint = null;   // перерисовать главный экран, когда событие придёт
 
-  window.addEventListener('beforeinstallprompt', function (e) {
-    e.preventDefault();
-    installEvent = e;
-    if (repaint) repaint();
-  });
-
-  window.addEventListener('appinstalled', function () {
-    installEvent = null;
-    if (repaint) repaint();
-  });
+  install.onEvent = function () { if (repaint) repaint(); };
 
   /** Приложение уже открыто как установленное — кнопка не нужна. */
   function installed() {
-    return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+    return install.installed === true ||
+           (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
            navigator.standalone === true;
   }
 
@@ -40,7 +33,7 @@
 
   /** Полоса-предложение вверху главного экрана. */
   function installOffer() {
-    if (installed() || offerHidden || !installEvent) return '';
+    if (installed() || offerHidden || !install.event) return '';
     return '<div class="install-offer">' +
       '<span class="ic">' + ui.I.install + '</span>' +
       '<span class="tx"><b>Поставить значок на рабочий стол?</b>' +
@@ -70,20 +63,41 @@
    * Поэтому там (и только там) остаётся короткая подсказка.
    */
   function doInstall(view) {
-    if (installEvent) {
-      installEvent.prompt();
-      installEvent.userChoice.then(function () {
-        installEvent = null;
+    if (install.event) {
+      install.event.prompt();
+      install.event.userChoice.then(function (res) {
+        /* Отказ не сбрасываем: браузер разрешает предложить ещё раз в этом же
+           сеансе, и кнопка должна остаться рабочей. */
+        if (!res || res.outcome === 'accepted') install.event = null;
         if (repaint) repaint();
       });
       return;
     }
-    hint(view, isIOS()
-      ? 'На iPhone значок ставится вручную: кнопка «Поделиться» внизу экрана → ' +
-        '«На экран „Домой“» → «Добавить». Другого пути Apple не даёт.'
-      : 'Браузер пока не даёт установить приложение. Обычно достаточно ' +
-        'открыть его ещё раз через минуту. Если не поможет — в меню браузера ' +
-        'есть пункт «Установить приложение».');
+
+    if (isIOS()) {
+      hint(view, 'На iPhone значок ставится вручную: кнопка «Поделиться» внизу экрана → ' +
+                 '«На экран „Домой“» → «Добавить». Другого пути Apple не даёт.');
+      return;
+    }
+
+    /* Уже установлено — второй раз браузер предложение не выдаёт.
+       Проверяем это явно, иначе сообщение звучит как отказ. */
+    if (navigator.getInstalledRelatedApps) {
+      navigator.getInstalledRelatedApps().then(function (apps) {
+        hint(view, apps && apps.length
+          ? 'Приложение уже установлено — значок есть на рабочем столе. ' +
+            'Если не находите, поищите «ПОГСВ АСС» в списке приложений.'
+          : notReadyText());
+      }).catch(function () { hint(view, notReadyText()); });
+      return;
+    }
+    hint(view, notReadyText());
+  }
+
+  function notReadyText() {
+    return 'Браузер пока не предложил установку. Так бывает, если значок уже ' +
+           'стоит на рабочем столе или страница открыта не по обычной ссылке. ' +
+           'Можно поставить вручную: меню браузера «⋮» → «Установить приложение».';
   }
 
   function hint(view, text) {

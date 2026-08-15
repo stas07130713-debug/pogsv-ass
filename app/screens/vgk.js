@@ -176,7 +176,7 @@
           ui.asset('assets/img/rescuer-' + (correct ? 'ok' : 'wrong') + '.jpg') + '" alt="">' +
         '<div><b>' + (correct ? 'Верно!' : 'Неверно') + '</b>' +
           '<span class="txt">' +
-            (correct ? 'Ответ совпадает с бланком аттестации.'
+            (correct ? 'Ответ соответствует требованиям НПА.'
                      : 'Правильный ответ: ' + ui.esc(item.options[item.correct])) +
           '</span></div>' +
       '</div>';
