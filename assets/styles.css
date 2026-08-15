@@ -1145,14 +1145,32 @@ body.is-modal { overflow: hidden; }
      спасателя на снимке приходится примерно на верхнюю половину кадра.
      Фиксированные пиксели тут не годятся — на разных мониторах снимок
      масштабируется, и карточки то налезали на лицо, то висели слишком низко. */
-  .start { min-height: 78vh; display: flex; flex-direction: column; }
-  .start-inner { display: flex; flex-direction: column; flex: 1 1 auto; }
+  /* Весь текст главного экрана прижат к нижнему краю: заголовок, подпись,
+     карточки режимов и подвал. Снимок со спасателем занимает верхние две
+     трети кадра, и любой блок, поставленный сверху, закрывает ему лицо.
+     Высота панели — во весь экран за вычетом отступов #app. */
+  .start {
+    min-height: calc(100vh - 38px);
+    min-height: calc(100dvh - 38px);
+    display: flex; flex-direction: column;
+    /* Нижнее поле панели урезано: эти пиксели нужны блоку текста, чтобы
+       целиком уйти ниже лица спасателя на снимке. */
+    padding-bottom: 8px;
+  }
+  .start-inner {
+    display: flex; flex-direction: column; flex: 1 1 auto;
+    justify-content: flex-end;
+  }
   .start-head { flex: none; }
-  .pick-label { margin-top: auto; font-size: 15px; }
-  .start h1 { font-size: 34px; }
-  .start .unit { font-size: 38px; }
-  .start .lead { font-size: 16px; max-width: 44ch; }
-  .brand img { height: 40px; }
+  .pick-label { margin-top: 14px; font-size: 15px; }
+  .start h1 { font-size: 28px; }
+  .start .unit { font-size: 32px; margin-top: 0; }
+  /* Пояснительный абзац на компьютере скрыт: вместе с ним блок текста
+     не помещался ниже лица спасателя и наползал на снимок. На телефоне
+     он скрыт по той же причине. */
+  .start .lead { display: none; }
+  .brand { margin-bottom: 14px; }
+  .brand img { height: 34px; }
   .mode-card { padding: 18px 14px; }
   .mode-card .ic svg { width: 26px; height: 26px; }
   .mode-card .nm { font-size: 15px; }
@@ -1160,6 +1178,24 @@ body.is-modal { overflow: hidden; }
   .start-foot { font-size: 13px; }
   .install-btn .tx b { font-size: 15px; }
   .install-btn .tx span { font-size: 13px; }
+}
+
+/* Невысокий монитор или ноутбук: снимок масштабируется по ширине, и лицо
+   спасателя опускается ниже, а места под текст остаётся меньше. Блок
+   уплотняется, чтобы по-прежнему целиком уходить под лицо. */
+@media (min-width: 900px) and (max-height: 820px) {
+  .start h1 { font-size: 24px; }
+  .start .unit { font-size: 27px; }
+  .brand { margin-bottom: 10px; }
+  .brand img { height: 30px; }
+  .pick-label { margin-top: 10px; font-size: 14px; }
+  .mode-card { padding: 13px 12px; }
+  .mode-card .ic svg { width: 23px; height: 23px; }
+  .mode-card .nm { font-size: 14px; }
+  .mode-card .ds { font-size: 12px; }
+  .install-btn { margin-top: 10px; padding: 9px 14px; }
+  .install-btn .ic { width: 30px; height: 30px; }
+  .start-foot { margin-top: 10px; }
 }
 
 /* Сенсорный экран любой ширины — телефон, планшет, панель в учебном классе.

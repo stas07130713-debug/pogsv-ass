@@ -16,18 +16,38 @@
 
 <!-- Метка ?v= обновляется при выпуске новой версии: без неё браузер и телефон
      продолжают показывать старые скрипты из кеша. -->
-<link rel="stylesheet" href="assets/styles.css?v=1.16.2">
-<link rel="icon" type="image/png" href="assets/img/favicon.png?v=1.16.2">
+<link rel="stylesheet" href="assets/styles.css?v=1.17.3">
+<link rel="icon" type="image/png" href="assets/img/favicon.png?v=1.17.3">
 
 <!-- Установка на телефон: значок на рабочем столе и запуск без адресной
      строки браузера. Работает после размещения приложения на сайте. -->
-<link rel="manifest" href="manifest.webmanifest?v=1.16.2">
-<link rel="apple-touch-icon" href="assets/img/icon-192.png?v=1.16.2">
+<link rel="manifest" href="manifest.webmanifest?v=1.17.3">
+<link rel="apple-touch-icon" href="assets/img/icon-192.png?v=1.17.3">
 <meta name="theme-color" content="#0b1017">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="ПОГСВ АСС">
 </head>
 <body>
+
+<script>
+/* Перехват предложения установки — САМЫМ ПЕРВЫМ, до загрузки всех остальных
+   скриптов. Браузер выдаёт beforeinstallprompt один раз и очень рано; если
+   подписаться позже, событие уже улетело, и кнопка «Значок на рабочий стол»
+   честно, но бесполезно сообщает, что установка недоступна.
+   Экран запуска потом забирает событие отсюда. */
+window.VGSCH = window.VGSCH || {};
+window.VGSCH.install = { event: null, onEvent: null };
+window.addEventListener('beforeinstallprompt', function (e) {
+  e.preventDefault();
+  window.VGSCH.install.event = e;
+  if (window.VGSCH.install.onEvent) window.VGSCH.install.onEvent();
+});
+window.addEventListener('appinstalled', function () {
+  window.VGSCH.install.event = null;
+  window.VGSCH.install.installed = true;
+  if (window.VGSCH.install.onEvent) window.VGSCH.install.onEvent();
+});
+</script>
 
 <div id="app"></div>
 
@@ -36,47 +56,47 @@
 </noscript>
 
 <!-- Настройки -->
-<script src="app/config.js?v=1.16.2"></script>
+<script src="app/config.js?v=1.17.3"></script>
 
 <!-- Нормативная база (заменяемый блок данных) -->
-<script src="app/data/normative/sources.js?v=1.16.2"></script>
-<script src="app/data/normative/ustav-251.js?v=1.16.2"></script>
-<script src="app/data/normative/fnp-520-app6.js?v=1.16.2"></script>
-<script src="app/data/normative/fnp-520-app7.js?v=1.16.2"></script>
-<script src="app/data/normative/apparatus.js?v=1.16.2"></script>
+<script src="app/data/normative/sources.js?v=1.17.3"></script>
+<script src="app/data/normative/ustav-251.js?v=1.17.3"></script>
+<script src="app/data/normative/fnp-520-app6.js?v=1.17.3"></script>
+<script src="app/data/normative/fnp-520-app7.js?v=1.17.3"></script>
+<script src="app/data/normative/apparatus.js?v=1.17.3"></script>
 
 <!-- Контент: вопросы и описания задач (заменяемый блок данных) -->
-<script src="app/data/questions.js?v=1.16.2"></script>
-<script src="app/data/vgk.js?v=1.16.2"></script>
-<script src="app/data/tasks/types.js?v=1.16.2"></script>
-<script src="app/data/tasks/ranges.js?v=1.16.2"></script>
+<script src="app/data/questions.js?v=1.17.3"></script>
+<script src="app/data/vgk.js?v=1.17.3"></script>
+<script src="app/data/tasks/types.js?v=1.17.3"></script>
+<script src="app/data/tasks/ranges.js?v=1.17.3"></script>
 
 <!-- Движок -->
-<script src="app/engine/rng.js?v=1.16.2"></script>
-<script src="app/engine/units.js?v=1.16.2"></script>
-<script src="app/engine/solvers/dask.js?v=1.16.2"></script>
-<script src="app/engine/solvers/thermal.js?v=1.16.2"></script>
-<script src="app/engine/solvers/smoke.js?v=1.16.2"></script>
-<script src="app/engine/scheme.js?v=1.16.2"></script>
-<script src="app/engine/generator.js?v=1.16.2"></script>
-<script src="app/engine/validator.js?v=1.16.2"></script>
-<script src="app/engine/pipeline.js?v=1.16.2"></script>
+<script src="app/engine/rng.js?v=1.17.3"></script>
+<script src="app/engine/units.js?v=1.17.3"></script>
+<script src="app/engine/solvers/dask.js?v=1.17.3"></script>
+<script src="app/engine/solvers/thermal.js?v=1.17.3"></script>
+<script src="app/engine/solvers/smoke.js?v=1.17.3"></script>
+<script src="app/engine/scheme.js?v=1.17.3"></script>
+<script src="app/engine/generator.js?v=1.17.3"></script>
+<script src="app/engine/validator.js?v=1.17.3"></script>
+<script src="app/engine/pipeline.js?v=1.17.3"></script>
 
 <!-- Каркас интерфейса -->
-<script src="app/core/ui.js?v=1.16.2"></script>
-<script src="app/core/pdf.js?v=1.16.2"></script>
-<script src="app/core/feedback.js?v=1.16.2"></script>
-<script src="app/core/state.js?v=1.16.2"></script>
-<script src="app/core/router.js?v=1.16.2"></script>
+<script src="app/core/ui.js?v=1.17.3"></script>
+<script src="app/core/pdf.js?v=1.17.3"></script>
+<script src="app/core/feedback.js?v=1.17.3"></script>
+<script src="app/core/state.js?v=1.17.3"></script>
+<script src="app/core/router.js?v=1.17.3"></script>
 
 <!-- Экраны -->
-<script src="app/screens/start.js?v=1.16.2"></script>
-<script src="app/screens/tests.js?v=1.16.2"></script>
-<script src="app/screens/tasks.js?v=1.16.2"></script>
-<script src="app/screens/exam.js?v=1.16.2"></script>
-<script src="app/screens/vgk.js?v=1.16.2"></script>
-<script src="app/screens/study.js?v=1.16.2"></script>
-<script src="app/screens/protocol.js?v=1.16.2"></script>
+<script src="app/screens/start.js?v=1.17.3"></script>
+<script src="app/screens/tests.js?v=1.17.3"></script>
+<script src="app/screens/tasks.js?v=1.17.3"></script>
+<script src="app/screens/exam.js?v=1.17.3"></script>
+<script src="app/screens/vgk.js?v=1.17.3"></script>
+<script src="app/screens/study.js?v=1.17.3"></script>
+<script src="app/screens/protocol.js?v=1.17.3"></script>
 
 <script>
   VGSCH.router.start(document.getElementById('app'));
@@ -101,7 +121,7 @@
     });
 
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js?v=1.16.2').then(function (reg) {
+      navigator.serviceWorker.register('sw.js?v=1.17.3').then(function (reg) {
         /* Проверка обновления при каждом запуске: браузер сам ходит за новым
            потоком не всегда, а приложение должно быть свежим. */
         reg.update();
