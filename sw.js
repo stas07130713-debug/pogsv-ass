@@ -15,25 +15,33 @@
 var VERSION = new URL(self.location.href).searchParams.get('v') || 'dev';
 var CACHE = 'pogsv-' + VERSION;
 
-/* Файлы, которые нужны на экранах, куда пользователь может и не зайти
-   в первый раз: фоны режимов и снимки в рамке ответа. Остальное попадает
-   в хранилище само, когда страница его запрашивает. */
+/* Обязательный минимум — только то, без чего не открыть первый экран.
+ *
+ * Раньше сюда входили все фоны и снимки, почти два мегабайта, и установка
+ * потока тянула их одновременно с самой страницей: первое открытие заметно
+ * подвисало. Всё остальное — фоны других режимов, снимки в рамке ответа,
+ * значки — попадает в хранилище само, когда страница их запросит.
+ * Офлайн от этого не страдает: к моменту, когда человек уйдёт под землю,
+ * он уже пройдёт по экранам и файлы осядут. */
 var PRECACHE = [
   './',
   './index.html',
   './manifest.webmanifest',
   './assets/styles.css',
-  './app/core/pdf.js',
-  './app/data/vgk.js',
-  './app/screens/vgk.js',
   './assets/img/bg-start.jpg',
   './assets/img/bg-start-mobile.jpg',
+  './assets/img/logo.png',
+  './assets/img/favicon.png'
+];
+
+/* Остальное подтягивается фоном, без спешки — уже после того, как страница
+   отрисовалась. Пользователь этого не ждёт. */
+var LAZY = [
   './assets/img/bg-tests.jpg',
   './assets/img/bg-tasks.jpg',
   './assets/img/bg-exam.jpg',
-  './assets/img/logo.png',
-  './assets/img/rescuer-ok.png',
-  './assets/img/rescuer-wrong.png',
+  './assets/img/rescuer-ok.jpg',
+  './assets/img/rescuer-wrong.jpg',
   './assets/img/report-rescuer.jpg',
   './assets/img/icon-192.png',
   './assets/img/icon-512.jpg',
@@ -71,6 +79,21 @@ self.addEventListener('activate', function (e) {
         }));
       })
       .then(function () { return self.clients.claim(); })
+      /* Дозагрузка остального — уже после активации и НЕ внутри waitUntil:
+         поток к этому моменту работает, страница отрисована, и скачивание
+         никого не задерживает. */
+      .then(function () {
+        caches.open(CACHE).then(function (cache) {
+          LAZY.reduce(function (chain, url) {
+            return chain.then(function () {
+              return cache.match(versioned(url)).then(function (hit) {
+                if (hit) return null;
+                return cache.add(new Request(versioned(url))).catch(function () {});
+              });
+            });
+          }, Promise.resolve());
+        });
+      })
   );
 });
 

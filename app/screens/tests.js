@@ -184,7 +184,7 @@
       view.querySelector('#verdict').innerHTML =
         '<div class="verdict ' + (correct ? 'ok' : 'bad') + '">' +
           '<img class="verdict-photo" src="' +
-            ui.asset('assets/img/rescuer-' + (correct ? 'ok' : 'wrong') + '.png') + '" alt="">' +
+            ui.asset('assets/img/rescuer-' + (correct ? 'ok' : 'wrong') + '.jpg') + '" alt="">' +
           '<div><b>' + (correct ? 'Верно!' : 'Неверно') + '</b>' +
             '<span class="txt">' +
               (correct ? 'Ответ соответствует требованию нормативного документа.'
