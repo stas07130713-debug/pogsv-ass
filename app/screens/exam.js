@@ -58,7 +58,7 @@
                  'var(--tests)', platoonReady) +
 
         kindCard('vgk', ui.I.study, 'Аттестация спасателей на ГСР',
-                 'Билет ВГК целиком: 20 вопросов в том же порядке, что в бланке' +
+                 '20 вопросов в том же порядке, что в бланке' +
                  (cfg.examVgk.timeLimitMin ? ', ' + cfg.examVgk.timeLimitMin + ' минут' : '') + '.',
                  'Зачёт: допускается не более ' +
                  ui.count(cfg.examVgk.allowedMistakes, ['ошибки', 'ошибок', 'ошибок']) + '.',
@@ -158,7 +158,7 @@
   /** Строка под кнопкой: из чего состоит выбранная аттестация. */
   function hint() {
     if (kind === 'vgk') {
-      return 'Билет ВГК: 20 вопросов' +
+      return '20 вопросов' +
         (cfg.examVgk.timeLimitMin ? ', ' + cfg.examVgk.timeLimitMin + ' минут' : '') +
         '. Допускается не более ' +
         ui.count(cfg.examVgk.allowedMistakes, ['ошибки', 'ошибок', 'ошибок']) + '.';

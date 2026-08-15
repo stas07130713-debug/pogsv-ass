@@ -308,6 +308,11 @@ h1, h2, h3, h4 { margin: 0; font-weight: 700; }
 .install-btn:hover { border-color: var(--tests); }
 
 .install-hint { font-size: 13px; line-height: 1.5; }
+/* Путь к установке — нумерованными шагами, а не сплошной строкой:
+   человек выполняет их по одному, глядя в меню браузера. */
+.install-steps { margin: 7px 0 0; padding-left: 20px; }
+.install-steps li { margin-bottom: 3px; }
+.install-steps li:last-child { margin-bottom: 0; }
 
 /* Две небольшие кнопки в ряд: поставить значок и показать QR-код.
    Прежняя кнопка занимала всю ширину и спорила с карточками режимов. */
@@ -330,7 +335,10 @@ h1, h2, h3, h4 { margin: 0; font-weight: 700; }
   background: rgba(47, 128, 237, .16);
   border: 1px solid rgba(47, 128, 237, .34);
 }
-.mini-btn .tx { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Подпись переносится по словам. Раньше стояла одна строка с многоточием,
+   и на телефоне от «Значка на рабочий стол» оставалось «Значок на рабо…» —
+   кнопка переставала объяснять, что она делает. */
+.mini-btn .tx { min-width: 0; line-height: 1.2; overflow-wrap: break-word; }
 .mini-btn:hover { color: var(--text); border-color: var(--tests); }
 
 /* Окно с QR-кодом. Код на белом поле — иначе камеры читают хуже. */
@@ -1062,20 +1070,27 @@ body.is-modal { overflow: hidden; }
   body[data-screen="start"] { --band: min(77vw, 34vh); }
 
   body[data-screen="start"]::before {
-    background-image: url("img/bg-start-mobile.jpg");
-    /* Кадр всегда во всю ширину экрана. Раньше высота задавалась жёстко,
-       и на узком экране картинка переставала доставать до краёв. */
-    background-size: 100% auto;
-    background-position: top center;
-    background-repeat: no-repeat;
+    /* Два слоя. Сверху — обрезанный по пояс кадр во всю ширину экрана
+       (раньше высота задавалась жёстко, и на узком экране картинка
+       переставала доставать до краёв). Под ним, на весь экран, — общий
+       снимок выработки: ниже полосы фон не обрывается в чёрное, а
+       продолжается туннелем, как на компьютере. */
+    background-image: url("img/bg-start-mobile.jpg"), url("img/bg-start.jpg");
+    background-size: 100% auto, cover;
+    background-position: top center, center;
+    background-repeat: no-repeat, no-repeat;
   }
+  /* Вуаль ниже полосы намеренно не доводится до сплошной: сквозь неё видно
+     продолжение выработки, но текст поверх читается без напряжения.
+     Заодно она прячет стык двух кадров на границе полосы. */
   body[data-screen="start"]::after {
     background: linear-gradient(180deg,
       rgba(5, 8, 12, 0)    0,
       rgba(5, 8, 12, .05)  calc(var(--band) * .58),
-      rgba(5, 8, 12, .60)  calc(var(--band) * .84),
-      rgba(7, 11, 17, .96) calc(var(--band) * .95),
-      rgba(7, 11, 17, 1)   var(--band));
+      rgba(5, 8, 12, .58)  calc(var(--band) * .84),
+      rgba(7, 11, 17, .84) calc(var(--band) * .95),
+      rgba(7, 11, 17, .88) var(--band),
+      rgba(7, 11, 17, .88) 100%);
   }
   /* Вертикальная вуаль теперь целиком в ::after — этот слой лишний. */
   .start-veil { display: none; }
