@@ -154,8 +154,8 @@
         : '<p>Все вопросы и задачи отвечены верно.</p>') +
 
       '<div class="sign">' +
-        '<span>Проверяемый ____________ / ' + ui.esc(st.person) + ' /</span>' +
-        '<span>Проверяющий ____________ / ____________ /</span>' +
+        '<span><b>Проверяемый</b>__________ / ' + ui.esc(st.person) + ' /</span>' +
+        '<span><b>Проверяющий</b>__________ / ____________ /</span>' +
       '</div>';
   }
 
@@ -316,12 +316,29 @@
       y += px(20);
     }
 
-    /* ---- подписи ---- */
-    need(px(70));
-    ctx.font = px(9.5) + 'px ' + FONT;
-    ctx.fillStyle = '#47505a';
-    ctx.fillText('Проверяемый ____________ / ' + (st.person || '') + ' /', MARGIN, y + px(30));
-    ctx.fillText('Проверяющий ____________ / ____________ /', MARGIN, y + px(52));
+    /* ---- подписи ----
+       Две колонки одинаковой ширины с чертой над ними: раньше строки шли
+       одна под другой без опоры и на листе выглядели съехавшими. Запас
+       считается по фактической высоте блока, а не «на глаз». */
+    var SIGN_H = px(64);
+    need(SIGN_H);
+    y += px(22);
+
+    var half = Math.floor((PAGE_W - MARGIN * 2) / 2);
+    line(ctx, MARGIN, y, PAGE_W - MARGIN, y, RULE);
+    y += px(16);
+
+    ctx.font = px(9) + 'px ' + FONT;
+    ctx.fillStyle = '#6b7480';
+    ctx.textAlign = 'left';
+    ctx.fillText('Проверяемый', MARGIN, y);
+    ctx.fillText('Проверяющий', MARGIN + half, y);
+
+    y += px(20);
+    ctx.font = px(10) + 'px ' + FONT;
+    ctx.fillStyle = INK;
+    ctx.fillText('__________ / ' + (st.person || '') + ' /', MARGIN, y);
+    ctx.fillText('__________ / ____________ /', MARGIN + half, y);
 
     return pages;
   }

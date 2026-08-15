@@ -277,7 +277,7 @@
       '<div class="panel" style="--accent:var(--tasks)">' +
         '<div class="verdict ' + (current.correct ? 'ok' : 'bad') + '">' +
           '<img class="verdict-photo" src="' +
-            ui.asset('assets/img/rescuer-' + (current.correct ? 'ok' : 'wrong') + '.png') + '" alt="">' +
+            ui.asset('assets/img/rescuer-' + (current.correct ? 'ok' : 'wrong') + '.jpg') + '" alt="">' +
           '<div><b>' + (current.correct ? 'Верно!' : 'Неверно') + '</b>' +
             '<span class="txt">Ваш ответ: ' + ui.esc(current.given) + '<br>' +
             'Правильный ответ: <b style="display:inline">' + ui.esc(answerText) + '</b></span></div>' +
