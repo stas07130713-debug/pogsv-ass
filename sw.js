@@ -43,9 +43,10 @@ var LAZY = [
   './assets/img/rescuer-ok.jpg',
   './assets/img/rescuer-wrong.jpg',
   './assets/img/report-rescuer.jpg',
+  './assets/img/qr.png',
   './assets/img/icon-192.png',
-  './assets/img/icon-512.jpg',
-  './assets/img/icon-maskable.jpg'
+  './assets/img/icon-512.png',
+  './assets/img/icon-maskable.png'
 ];
 
 /* Путь с меткой версии — ровно в том виде, в каком его запросит страница.

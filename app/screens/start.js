@@ -44,13 +44,65 @@
       '</span></div>';
   }
 
-  /** Кнопка внизу — на случай, если предложение закрыли. */
-  function installButton() {
-    if (installed()) return '';
-    return '<button class="install-btn" data-act="install" type="button">' +
-      '<span class="ic">' + ui.I.install + '</span>' +
-      '<span class="tx"><b>Значок на рабочий стол</b>' +
-      '<span>Запуск как у обычного приложения, работа без связи</span></span></button>';
+  /** Ряд внизу: установка значка и QR-код для передачи ссылки товарищам. */
+  function bottomRow() {
+    return '<div class="start-actions">' +
+      (installed() ? '' :
+        '<button class="mini-btn" data-act="install" type="button">' +
+          '<span class="ic">' + ui.I.install + '</span>' +
+          '<span class="tx">Значок на рабочий стол</span></button>') +
+      '<button class="mini-btn" data-act="qr" type="button">' +
+        '<span class="ic">' + ui.I.qr + '</span>' +
+        '<span class="tx">Поделиться приложением</span></button>' +
+    '</div>';
+  }
+
+  /** Окно с QR-кодом: навёл камеру — приложение открылось. */
+  function showQr() {
+    var link = location.origin + location.pathname;
+    var o = document.createElement('div');
+    o.className = 'modal-overlay';
+    o.innerHTML =
+      '<div class="modal modal-qr" role="dialog" aria-modal="true">' +
+        '<div class="modal-head">' +
+          '<h3>Поделиться приложением</h3>' +
+          '<button class="modal-x" data-act="close" aria-label="Закрыть">' + ui.I.cross + '</button>' +
+        '</div>' +
+        '<div class="modal-body qr-body">' +
+          '<img class="qr-img" src="' + ui.asset('assets/img/qr.png') + '" alt="QR-код приложения">' +
+          '<p class="muted">Наведите камеру телефона — приложение откроется сразу. ' +
+            'Код можно показать с экрана или переслать снимком.</p>' +
+          '<div class="qr-link">' + ui.esc(link) + '</div>' +
+        '</div>' +
+        '<div class="modal-foot">' +
+          '<button class="btn-quiet" data-act="close">Закрыть</button>' +
+          '<div class="spacer"></div>' +
+          '<button class="btn-ghost" data-act="copy-link">' + ui.I.copy + 'Скопировать ссылку</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(o);
+    document.body.classList.add('is-modal');
+
+    o.addEventListener('click', function (e) {
+      if (e.target === o) { closeQr(); return; }
+      var b = e.target.closest('[data-act]');
+      if (!b) return;
+      if (b.dataset.act === 'close') { closeQr(); return; }
+      if (b.dataset.act === 'copy-link') {
+        var done = function (ok) {
+          b.textContent = ok ? 'Ссылка скопирована' : 'Скопируйте ссылку вручную';
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(link).then(function () { done(true); }, function () { done(false); });
+        } else { done(false); }
+      }
+    });
+  }
+
+  function closeQr() {
+    var o = document.querySelector('.modal-overlay');
+    if (o) o.remove();
+    document.body.classList.remove('is-modal');
   }
 
   /**
@@ -80,24 +132,58 @@
       return;
     }
 
-    /* Уже установлено — второй раз браузер предложение не выдаёт.
-       Проверяем это явно, иначе сообщение звучит как отказ. */
-    if (navigator.getInstalledRelatedApps) {
-      navigator.getInstalledRelatedApps().then(function (apps) {
-        hint(view, apps && apps.length
-          ? 'Приложение уже установлено — значок есть на рабочем столе. ' +
-            'Если не находите, поищите «ПОГСВ АСС» в списке приложений.'
-          : notReadyText());
-      }).catch(function () { hint(view, notReadyText()); });
-      return;
-    }
-    hint(view, notReadyText());
+    /* Предложения не было. Вместо общей отговорки проверяем условия,
+       которые браузер предъявляет к установке, и называем то, что не сошлось.
+       Так следующий разговор начинается с факта, а не с догадок. */
+    diagnose().then(function (d) { hint(view, notReadyText(d)); });
   }
 
-  function notReadyText() {
-    return 'Браузер пока не предложил установку. Так бывает, если значок уже ' +
-           'стоит на рабочем столе или страница открыта не по обычной ссылке. ' +
-           'Можно поставить вручную: меню браузера «⋮» → «Установить приложение».';
+  /** Проверка условий установки: манифест, значки, служебный поток, адрес. */
+  function diagnose() {
+    var d = {
+      https: location.protocol === 'https:' || location.hostname === 'localhost',
+      worker: false, manifest: false, icons: false, standalone: installed(), related: false
+    };
+    var steps = [];
+
+    steps.push(fetch('manifest.webmanifest?v=' + VGSCH.config.version)
+      .then(function (r) { return r.json(); })
+      .then(function (m) {
+        d.manifest = !!(m && m.name && m.start_url && m.display);
+        d.icons = !!(m && m.icons && m.icons.some(function (i) {
+          return /png|webp|svg/.test(i.type || '') && parseInt(i.sizes, 10) >= 192;
+        }));
+      }).catch(function () {}));
+
+    if (navigator.serviceWorker) {
+      steps.push(navigator.serviceWorker.getRegistration()
+        .then(function (reg) { d.worker = !!(reg && reg.active); })
+        .catch(function () {}));
+    }
+    if (navigator.getInstalledRelatedApps) {
+      steps.push(navigator.getInstalledRelatedApps()
+        .then(function (a) { d.related = !!(a && a.length); })
+        .catch(function () {}));
+    }
+    return Promise.all(steps).then(function () { return d; });
+  }
+
+  function notReadyText(d) {
+    if (d.standalone || d.related) {
+      return 'Приложение уже установлено — значок есть на рабочем столе. ' +
+             'Если не находите, поищите «ПОГСВ АСС» в списке приложений телефона.';
+    }
+    var bad = [];
+    if (!d.https) bad.push('страница открыта не по защищённой ссылке (https)');
+    if (!d.manifest) bad.push('не читается описание приложения');
+    if (!d.icons) bad.push('нет значка нужного формата');
+    if (!d.worker) bad.push('не запустился служебный поток — обновите страницу');
+    if (bad.length) return 'Установка недоступна: ' + bad.join('; ') + '.';
+
+    return 'Все условия выполнены, но браузер ещё не предложил установку — ' +
+           'он делает это не сразу. Поставьте вручную: меню «⋮» → ' +
+           '«Установить приложение» (в Яндекс.Браузере — «Добавить на главный экран»). ' +
+           'Либо откройте приложение ещё раз через минуту.';
   }
 
   function hint(view, text) {
@@ -163,7 +249,7 @@
                      'для аттестации<br>спасателей на ГСР', vgkCount > 0) +
           '</div>' +
 
-          installButton() +
+          bottomRow() +
           '<div id="installHint"></div>' +
 
           '<div class="start-foot">' +
@@ -186,6 +272,7 @@
     });
 
     ui.on(v, '[data-act="install"]', function () { doInstall(v); });
+    ui.on(v, '[data-act="qr"]', function () { showQr(); });
     ui.on(v, '[data-act="install-later"]', function () { offerHidden = true; render(root); });
 
     /* Событие от браузера приходит с задержкой и уже после отрисовки —
