@@ -137,7 +137,8 @@
         text: item.q.q,
         extra: 'Варианты: ' +
           item.options.map(function (o, i) { return 'АБВ'[i] + '. ' + o; }).join(' / ') + '\n' +
-          'Верный ответ: ' + 'АБВ'[item.correct] + '. ' + item.options[item.correct]
+          'Верный ответ: ' + 'АБВ'[item.correct] + '. ' + item.options[item.correct] +
+          (item.q.npa ? '\nОснование: ' + item.q.npa : '')
       };
     });
     ui.on(v, '.option', function (b) { pick(v, parseInt(b.dataset.i, 10)); });
@@ -178,7 +179,13 @@
           '<span class="txt">' +
             (correct ? 'Ответ соответствует требованиям НПА.'
                      : 'Правильный ответ: ' + ui.esc(item.options[item.correct])) +
-          '</span></div>' +
+          '</span>' +
+          /* Основание показываем только при ошибке и только там, где оно
+             записано в билете: несколько ответов люди уже оспаривали,
+             и ссылка на документ снимает спор на месте. */
+          (!correct && item.q.npa
+            ? '<span class="src">Основание: ' + ui.esc(item.q.npa) + '</span>' : '') +
+        '</div>' +
       '</div>';
     view.querySelector('#next').disabled = false;
   }

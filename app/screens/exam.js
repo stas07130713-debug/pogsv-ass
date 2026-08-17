@@ -480,7 +480,8 @@
           ? '<div class="scheme-wrap">' + VGSCH.engine.scheme.render(t) + '</div>' : '') +
         (t.answer.type === 'numeric'
           ? '<div class="field"><div class="muted" style="margin-bottom:8px">Введите ответ (' +
-              ui.esc(t.answer.unit) + '):</div><div class="answer-row">' +
+              ui.esc(t.answer.unit) + '), с точностью ' +
+              ui.precision(t.answer.decimals) + ':</div><div class="answer-row">' +
               '<input type="text" id="numAnswer" inputmode="decimal" autocomplete="off" ' +
               'placeholder="Числовое значение" value="' +
               (given === undefined ? '' : ui.esc(String(given).replace('.', ','))) + '">' +
