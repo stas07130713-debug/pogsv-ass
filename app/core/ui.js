@@ -284,12 +284,25 @@
   /** Число с правильным окончанием: '5 типов'. */
   function count(n, forms) { return n + ' ' + plural(n, forms); }
 
+  /**
+   * Требуемая точность числового ответа словами: precision(1) → 'до 0,1'.
+   *
+   * Нужно, чтобы требование не было скрытым. Раньше поле подписывалось
+   * только единицей измерения, а сверка шла с точностью до последнего
+   * знака: человек считал верно, округлял до целых и получал «неверно»,
+   * не понимая, чем ответ не подошёл.
+   */
+  function precision(decimals) {
+    if (!decimals) return 'до целого числа';
+    return 'до 0,' + new Array(decimals).join('0') + '1';
+  }
+
   VGSCH.ui = {
     esc: esc, clear: clear, on: on, paint: paint, asset: asset, toTop: toTop,
     clock: clock, dateTime: dateTime,
     countdown: countdown, stopwatch: stopwatch,
     I: I, ACCENT: ACCENT, ACCENT_BG: ACCENT_BG,
     appbar: appbar, tabbar: tabbar, progress: progress, bar: bar, donut: donut,
-    wireNav: wireNav, plural: plural, count: count
+    wireNav: wireNav, plural: plural, count: count, precision: precision
   };
 })(window.VGSCH = window.VGSCH || {});
