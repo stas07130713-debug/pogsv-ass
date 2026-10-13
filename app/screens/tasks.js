@@ -15,6 +15,7 @@
   var current = null;
   var group = null;
   var solved = 0;
+  var commissionAttempt = null;
 
   /* Формы для склонения: 1 тип, 2 типа, 5 типов. */
   var TYPE_FORMS = ['тип', 'типа', 'типов'];
@@ -115,6 +116,7 @@
 
   function renderCommissionTask(root,id) {
     var t=commission.byId(id), s=t.solution;
+    commissionAttempt = null;
     var v=ui.paint(root,
       ui.appbar({mode:'tasks',title:t.title,backArrow:true})+
       '<div class="panel" style="--accent:var(--tasks)">' +
@@ -124,22 +126,41 @@
         '<div class="task-inputs"><h4>Принятая методика</h4><ul>'+
           '<li>Дыхательный аппарат — Р-30.</li><li>Одна катушка связи — 800 м.</li>'+
           '<li>Промежуточный угол относится к ближайшему большему столбцу таблицы № 1.</li></ul></div>'+
+        '<div class="field"><div class="muted" style="margin-bottom:8px">Введите ответ: '+ui.esc(s.label)+
+          ' ('+ui.esc(s.unit)+'), с точностью до 0,1:</div><div class="answer-row">'+
+          '<input type="text" id="commissionAnswer" inputmode="decimal" autocomplete="off" placeholder="Числовое значение">'+
+          '<span class="unit">'+ui.esc(s.unit)+'</span></div><div class="field-error" id="commissionError"></div></div>'+
         '<div class="actions"><button data-act="commissionBack">'+ui.I.prev+'К вариантам</button>'+
-          '<div class="spacer"></div><button class="primary" style="--accent:var(--tests)" data-act="showCommission">Показать решение</button></div>'+
+          '<div class="spacer"></div><button class="primary" style="--accent:var(--tests)" data-act="checkCommission">Проверить</button></div>'+
         VGSCH.feedback.button()+'</div>'+ui.tabbar('tasks'));
     VGSCH.router.setBackHandler(function(){renderCommissionPicker(root);return true;});
     ui.wireNav(v);
     VGSCH.feedback.wire(v,function(){return commissionContext(t);});
     ui.on(v,'[data-act="commissionBack"]',function(){renderCommissionPicker(root);});
-    ui.on(v,'[data-act="showCommission"]',function(){renderCommissionSolution(root,id,0);});
+    function checkCommission() {
+      var raw=String(v.querySelector('#commissionAnswer').value).trim().replace(',','.');
+      var num=parseFloat(raw);
+      if(raw===''||!isFinite(num)){v.querySelector('#commissionError').textContent='Введите числовое значение.';return;}
+      commissionAttempt={given:num,correct:Math.abs(num-s.primary)<=0.15};
+      renderCommissionSolution(root,id,0);
+    }
+    ui.on(v,'[data-act="checkCommission"]',checkCommission);
+    v.querySelector('#commissionAnswer').addEventListener('keydown',function(e){if(e.key==='Enter')checkCommission();});
+    v.querySelector('#commissionAnswer').focus();
   }
 
   function renderCommissionSolution(root,id,step) {
     var t=commission.byId(id), sol=t.solution, s=sol.steps[step];
+    var attempt=commissionAttempt||{given:NaN,correct:false};
     var v=ui.paint(root,
       ui.appbar({mode:'tasks',title:'Решение · '+t.title,backArrow:true})+
       ui.progress(step+1,sol.steps.length,'Шаг '+(step+1)+' из '+sol.steps.length,'var(--tasks)')+
-      '<div class="panel" style="--accent:var(--tasks)"><div class="solve">'+
+      '<div class="panel" style="--accent:var(--tasks)">'+
+        '<div class="verdict '+(attempt.correct?'ok':'bad')+'"><img class="verdict-photo" src="'+
+          ui.asset('assets/img/rescuer-'+(attempt.correct?'ok':'wrong')+'.jpg')+'" alt=""><div><b>'+
+          (attempt.correct?'Верно!':'Неверно')+'</b><span class="txt">Ваш ответ: '+
+          (isFinite(attempt.given)?ui.esc(units.fmt(attempt.given,1)+' '+sol.unit):'—')+'<br>Правильный ответ: <b style="display:inline">'+
+          ui.esc(units.fmt(sol.primary,1)+' '+sol.unit)+'</b></span></div></div><div class="solve">'+
         '<div class="solve-nav">'+sol.steps.map(function(x,i){return '<button data-cstep="'+i+'"'+(i===step?' class="is-active"':'')+'><span class="n">'+(i+1)+'</span><span>'+ui.esc(x.label)+'</span></button>';}).join('')+'</div>'+
         '<div class="solve-body"><h4>'+(step+1)+'. '+ui.esc(s.label)+'</h4><div class="val">'+ui.esc(s.value)+'</div>'+
           '<div class="dt">'+ui.esc(s.detail||'')+'</div></div></div>'+
