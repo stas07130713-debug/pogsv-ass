@@ -166,7 +166,8 @@
     }
     ui.on(v,'[data-act="checkCommission"]',checkCommission);
     v.querySelectorAll('[data-canswer]').forEach(function(el){el.addEventListener('keydown',function(e){if(e.key==='Enter')checkCommission();});});
-    v.querySelector('[data-canswer]').focus();
+    /* Не ставим фокус автоматически: мобильный браузер прокручивал страницу
+       к первому полю и скрывал условие задачи и верх схемы. */
   }
 
   function renderCommissionSolution(root,id,step) {
@@ -282,7 +283,8 @@
 
     var inp = v.querySelector('#numAnswer');
     if (inp) {
-      inp.focus();
+      /* Поле получает фокус только по нажатию пользователя. Автофокус на
+         телефоне переносил экран от условия сразу к середине задачи. */
       inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') check(root, v); });
     } else {
       ui.on(v, '.option', function (b) {
