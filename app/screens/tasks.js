@@ -10,6 +10,7 @@
   var units = VGSCH.engine.units;
   var pipeline = VGSCH.engine.pipeline;
   var types = VGSCH.data.taskTypes;
+  var commission = VGSCH.data.commissionTasks;
 
   var current = null;
   var group = null;
@@ -47,16 +48,112 @@
               '<span class="t">' + ui.esc(g) + '</span>' +
               '<span class="n">' + ui.count(n, TYPE_FORMS) + '</span></button>';
           }).join('') +
+          '<button class="pick-item commission-pick" data-commission="1">' +
+            '<span class="t">' + ui.esc(commission.groupTitle) + '</span>' +
+            '<span class="n">15 задач</span></button>' +
         '</div>' +
       '</div>' +
       ui.tabbar('tasks'));
 
     ui.wireNav(v);
     ui.on(v, '.pick-item', function (b) {
+      if (b.dataset.commission) { renderCommissionPicker(root); return; }
       group = b.dataset.group || null;
       solved = 0;
       nextTask(root);
     });
+  }
+
+  /* ------------------ фиксированные комбинированные задачи комиссии МЧС */
+
+  function renderCommissionPicker(root) {
+    var list = commission.all();
+    var series = [
+      { n: 1, title: 'Серия 1 · Поиск и эвакуация пострадавшего' },
+      { n: 2, title: 'Серия 2 · Давление, расстояние и катушки связи' },
+      { n: 3, title: 'Серия 3 · Выход резервного отделения' }
+    ];
+    var v = ui.paint(root,
+      ui.appbar({ mode: 'tasks', title: 'Комбинированные задачи', backArrow: true }) +
+      '<div class="panel" style="--accent:var(--tasks)">' +
+        '<h3 style="margin-bottom:6px">Вопросы от комиссии МЧС</h3>' +
+        '<p class="muted" style="margin:0 0 16px">Фиксированные варианты сохраняют исходные ' +
+          'числа и схемы. Расчёты выполняются для Р-30; длина катушки связи — 800 м.</p>' +
+        series.map(function (s) {
+          return '<section class="commission-series"><h4>' + ui.esc(s.title) + '</h4>' +
+            '<div class="commission-variants">' + list.filter(function(t){return t.series===s.n;})
+              .map(function(t){return '<button data-commission-id="'+t.id+'">Задача '+t.id+'</button>';}).join('') +
+            '</div></section>';
+        }).join('') +
+      '</div>' + ui.tabbar('tasks'));
+    VGSCH.router.setBackHandler(function(){renderPicker(root);return true;});
+    ui.wireNav(v);
+    ui.on(v, '[data-commission-id]', function(b){renderCommissionTask(root,b.dataset.commissionId);});
+  }
+
+  function commissionScheme(t) {
+    var xs=[45,175,305,435,565,695], ys=[95,95,155,155,215,215];
+    var labels=[];
+    for(var i=0;i<5;i++){
+      var extra=t.lengths ? ' · '+t.lengths[i]+' м' : '';
+      if(t.readings) extra+=' · '+t.readings[i]+'→'+(i<4?t.readings[i+1]:'?')+' атм.';
+      if(t.arrivals) extra+=' · '+t.arrivals[i]+'→'+t.arrivals[i+1];
+      labels.push('<text x="'+((xs[i]+xs[i+1])/2)+'" y="'+((ys[i]+ys[i+1])/2-10)+'" text-anchor="middle">'+
+        t.angles[i]+'°'+extra+'</text>');
+    }
+    return '<div class="commission-scheme"><svg viewBox="0 0 740 260" role="img" aria-label="Схема маршрута">' +
+      '<polyline points="'+xs.map(function(x,i){return x+','+ys[i];}).join(' ')+'"/>' + labels.join('') +
+      xs.map(function(x,i){return '<circle cx="'+x+'" cy="'+ys[i]+'" r="14"/><text class="point" x="'+x+'" y="'+(ys[i]+5)+'" text-anchor="middle">'+(i+1)+'</text>';}).join('') +
+      '</svg></div>';
+  }
+
+  function commissionContext(t) {
+    return { mode:'Задачи — комиссия МЧС', kind:'Задача', id:t.id,
+      text:t.condition, extra:'Р-30; катушка связи 800 м; углы: '+t.angles.join('°, ')+'°.\n'+
+        'Расчётный ответ: '+units.fmt(t.solution.primary,1)+' '+t.solution.unit };
+  }
+
+  function renderCommissionTask(root,id) {
+    var t=commission.byId(id), s=t.solution;
+    var v=ui.paint(root,
+      ui.appbar({mode:'tasks',title:t.title,backArrow:true})+
+      '<div class="panel" style="--accent:var(--tasks)">' +
+        '<div class="qbox"><div class="muted" style="margin-bottom:8px">'+ui.esc(commission.groupTitle)+'</div>'+
+          '<div class="question" style="margin:0">'+ui.esc(t.condition)+'</div></div>'+
+        commissionScheme(t)+
+        '<div class="task-inputs"><h4>Принятая методика</h4><ul>'+
+          '<li>Дыхательный аппарат — Р-30.</li><li>Одна катушка связи — 800 м.</li>'+
+          '<li>Промежуточный угол относится к ближайшему большему столбцу таблицы № 1.</li></ul></div>'+
+        '<div class="actions"><button data-act="commissionBack">'+ui.I.prev+'К вариантам</button>'+
+          '<div class="spacer"></div><button class="primary" style="--accent:var(--tests)" data-act="showCommission">Показать решение</button></div>'+
+        VGSCH.feedback.button()+'</div>'+ui.tabbar('tasks'));
+    VGSCH.router.setBackHandler(function(){renderCommissionPicker(root);return true;});
+    ui.wireNav(v);
+    VGSCH.feedback.wire(v,function(){return commissionContext(t);});
+    ui.on(v,'[data-act="commissionBack"]',function(){renderCommissionPicker(root);});
+    ui.on(v,'[data-act="showCommission"]',function(){renderCommissionSolution(root,id,0);});
+  }
+
+  function renderCommissionSolution(root,id,step) {
+    var t=commission.byId(id), sol=t.solution, s=sol.steps[step];
+    var v=ui.paint(root,
+      ui.appbar({mode:'tasks',title:'Решение · '+t.title,backArrow:true})+
+      ui.progress(step+1,sol.steps.length,'Шаг '+(step+1)+' из '+sol.steps.length,'var(--tasks)')+
+      '<div class="panel" style="--accent:var(--tasks)"><div class="solve">'+
+        '<div class="solve-nav">'+sol.steps.map(function(x,i){return '<button data-cstep="'+i+'"'+(i===step?' class="is-active"':'')+'><span class="n">'+(i+1)+'</span><span>'+ui.esc(x.label)+'</span></button>';}).join('')+'</div>'+
+        '<div class="solve-body"><h4>'+(step+1)+'. '+ui.esc(s.label)+'</h4><div class="val">'+ui.esc(s.value)+'</div>'+
+          '<div class="dt">'+ui.esc(s.detail||'')+'</div></div></div>'+
+        '<div class="commission-answer">Итог: <b>'+ui.esc(sol.label)+': '+units.fmt(sol.primary,1)+' '+sol.unit+'</b></div>'+
+        '<div class="muted" style="margin-top:14px">Основание: Устав ВГСЧ, пп. 22–23; приказ Ростехнадзора № 520, приложения № 6 и № 7; руководство по эксплуатации Р-30.</div>'+
+        '<div class="actions"><button data-act="cprev"'+(step===0?' disabled':'')+'>'+ui.I.prev+'Назад</button><div class="spacer"></div>'+
+          (step<sol.steps.length-1?'<button class="primary" style="--accent:var(--tests)" data-act="cnext">Далее'+ui.I.next+'</button>':'<button class="primary" style="--accent:var(--tests)" data-act="commissionList">К списку задач</button>')+'</div>'+
+        VGSCH.feedback.button()+'</div>'+ui.tabbar('tasks'),{keepScroll:step>0});
+    VGSCH.router.setBackHandler(function(){renderCommissionTask(root,id);return true;});
+    ui.wireNav(v); VGSCH.feedback.wire(v,function(){return commissionContext(t);});
+    ui.on(v,'[data-cstep]',function(b){renderCommissionSolution(root,id,parseInt(b.dataset.cstep,10));});
+    ui.on(v,'[data-act="cprev"]',function(){renderCommissionSolution(root,id,step-1);});
+    ui.on(v,'[data-act="cnext"]',function(){renderCommissionSolution(root,id,step+1);});
+    ui.on(v,'[data-act="commissionList"]',function(){renderCommissionPicker(root);});
   }
 
   function implementedCount() {

@@ -1292,3 +1292,22 @@ body.is-modal { overflow: hidden; }
   .modal { max-height: 94dvh; }
   .modal textarea { min-height: 64px; }
 }
+
+/* Фиксированные комбинированные задачи комиссии МЧС. */
+.commission-pick { border-color:rgba(237,174,72,.55); }
+.commission-series { margin-top:20px; }
+.commission-series h4 { margin:0 0 10px; }
+.commission-variants { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; }
+.commission-variants button { min-width:0; justify-content:center; }
+.commission-scheme { margin:18px 0; padding:12px; border:1px solid var(--line); border-radius:16px; background:rgba(5,10,17,.48); overflow-x:auto; }
+.commission-scheme svg { display:block; min-width:680px; width:100%; height:auto; }
+.commission-scheme polyline { fill:none; stroke:#f0b24f; stroke-width:7; stroke-linecap:round; stroke-linejoin:round; }
+.commission-scheme circle { fill:#101923; stroke:#f0b24f; stroke-width:3; }
+.commission-scheme text { fill:var(--text); font-size:13px; }
+.commission-scheme .point { font-size:13px; font-weight:800; }
+.commission-answer { margin-top:16px; padding:14px 16px; border-radius:14px; background:rgba(47,151,99,.16); border:1px solid rgba(83,205,139,.4); }
+
+@media (max-width:640px) {
+  .commission-variants { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .commission-scheme { margin-left:-6px; margin-right:-6px; }
+}

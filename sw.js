@@ -106,10 +106,15 @@ self.addEventListener('fetch', function (e) {
   if (url.origin !== self.location.origin) return;   // Google Форма идёт мимо
 
   /* Открытие страницы: сначала сеть, чтобы обновление доходило сразу;
-     нет связи — отдаём сохранённую копию. */
+     нет связи — отдаём сохранённую копию.
+     cache: 'reload' обязателен. Обычный fetch спрашивает сеть не всегда:
+     сайт отдаёт страницу с max-age=600, и браузер вправе десять минут
+     возвращать свою копию, не выходя наружу. Тогда обновление не доходит
+     ни до потока, ни до человека. С 'reload' запрос идёт в сеть всегда,
+     а копия в браузере заодно обновляется. */
   if (req.mode === 'navigate') {
     e.respondWith(
-      fetch(req)
+      fetch(new Request(req.url, { cache: 'reload', credentials: 'same-origin' }))
         .then(function (res) {
           var copy = res.clone();
           caches.open(CACHE).then(function (c) { c.put('./index.html', copy); });
@@ -132,6 +137,11 @@ self.addEventListener('fetch', function (e) {
    *
    * С точным совпадением новая версия — это всегда промах хранилища,
    * файл берётся из сети и кладётся уже под новым адресом. */
+  /* Проверочные запросы сторожа версии (cache: 'no-store') идут мимо
+     хранилища в обе стороны: у них одноразовый адрес с меткой времени,
+     и складывать их — значит копить мусор по копии на каждый запуск. */
+  if (req.cache === 'no-store') return;
+
   e.respondWith(
     caches.match(req).then(function (hit) {
       if (hit) return hit;
