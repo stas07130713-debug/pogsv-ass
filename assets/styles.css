@@ -1306,6 +1306,16 @@ body.is-modal { overflow: hidden; }
 .commission-scheme text { fill:var(--text); font-size:13px; }
 .commission-scheme .point { font-size:13px; font-weight:800; }
 .commission-answer { margin-top:16px; padding:14px 16px; border-radius:14px; background:rgba(47,151,99,.16); border:1px solid rgba(83,205,139,.4); }
+.commission-answer-fields { display:grid; gap:13px; margin:18px 0; }
+.commission-answer-fields h4 { margin:0; }
+.commission-field { display:grid; gap:7px; }
+.commission-field > span { font-weight:700; line-height:1.35; }
+.commission-field select { width:100%; min-height:48px; border:1px solid var(--line); border-radius:12px; background:#111b26; color:var(--text); padding:0 13px; font:inherit; }
+.commission-review { display:grid; gap:8px; margin:14px 0 18px; padding:0; list-style:none; }
+.commission-review li { display:grid; gap:3px; padding:11px 13px; border-radius:12px; border:1px solid var(--line); background:rgba(255,255,255,.035); }
+.commission-review li.ok { border-color:rgba(83,205,139,.45); }
+.commission-review li.bad { border-color:rgba(235,102,91,.5); }
+.commission-review li span { color:var(--muted); font-size:13px; }
 
 @media (max-width:640px) {
   .commission-variants { grid-template-columns:repeat(2,minmax(0,1fr)); }

@@ -111,7 +111,19 @@
   function commissionContext(t) {
     return { mode:'Задачи — комиссия МЧС', kind:'Задача', id:t.id,
       text:t.condition, extra:'Р-30; катушка связи 800 м; углы: '+t.angles.join('°, ')+'°.\n'+
-        'Расчётный ответ: '+units.fmt(t.solution.primary,1)+' '+t.solution.unit };
+        'Расчётные ответы: '+t.solution.answers.map(function(a){return a.label+': '+
+          (a.type==='choice'?(a.value?'задание выполнимо':'задание невыполнимо'):
+           a.type==='time'?a.value:units.fmt(a.value,a.decimals)+' '+a.unit);}).join('; ') };
+  }
+
+  function renderCommissionAnswers(solution) {
+    return '<div class="commission-answer-fields"><h4>Ответы</h4>'+solution.answers.map(function(a,i){
+      if(a.type==='choice') return '<label class="commission-field"><span>'+(i+1)+'. '+ui.esc(a.label)+'</span><select data-canswer="'+ui.esc(a.id)+'">'+
+        '<option value="">Выберите вариант</option>'+a.options.map(function(o){return '<option value="'+(o.value?'1':'0')+'">'+ui.esc(o.label)+'</option>';}).join('')+'</select><small class="field-error"></small></label>';
+      return '<label class="commission-field"><span>'+(i+1)+'. '+ui.esc(a.label)+(a.unit?' ('+ui.esc(a.unit)+')':'')+'</span><div class="answer-row">'+
+        '<input type="'+(a.type==='time'?'time':'text')+'" '+(a.type==='numeric'?'inputmode="decimal" ':'')+'data-canswer="'+ui.esc(a.id)+'" autocomplete="off" placeholder="'+(a.type==='time'?'ЧЧ:ММ':'Числовое значение')+'">'+
+        (a.unit?'<span class="unit">'+ui.esc(a.unit)+'</span>':'')+'</div><small class="field-error"></small></label>';
+    }).join('')+'</div>';
   }
 
   function renderCommissionTask(root,id) {
@@ -126,10 +138,7 @@
         '<div class="task-inputs"><h4>Принятая методика</h4><ul>'+
           '<li>Дыхательный аппарат — Р-30.</li><li>Одна катушка связи — 800 м.</li>'+
           '<li>Промежуточный угол относится к ближайшему большему столбцу таблицы № 1.</li></ul></div>'+
-        '<div class="field"><div class="muted" style="margin-bottom:8px">Введите ответ: '+ui.esc(s.label)+
-          ' ('+ui.esc(s.unit)+'), с точностью до 0,1:</div><div class="answer-row">'+
-          '<input type="text" id="commissionAnswer" inputmode="decimal" autocomplete="off" placeholder="Числовое значение">'+
-          '<span class="unit">'+ui.esc(s.unit)+'</span></div><div class="field-error" id="commissionError"></div></div>'+
+        renderCommissionAnswers(s)+
         '<div class="actions"><button data-act="commissionBack">'+ui.I.prev+'К вариантам</button>'+
           '<div class="spacer"></div><button class="primary" style="--accent:var(--tests)" data-act="checkCommission">Проверить</button></div>'+
         VGSCH.feedback.button()+'</div>'+ui.tabbar('tasks'));
@@ -138,33 +147,41 @@
     VGSCH.feedback.wire(v,function(){return commissionContext(t);});
     ui.on(v,'[data-act="commissionBack"]',function(){renderCommissionPicker(root);});
     function checkCommission() {
-      var raw=String(v.querySelector('#commissionAnswer').value).trim().replace(',','.');
-      var num=parseFloat(raw);
-      if(raw===''||!isFinite(num)){v.querySelector('#commissionError').textContent='Введите числовое значение.';return;}
-      commissionAttempt={given:num,correct:Math.abs(num-s.primary)<=0.15};
+      var items=[],valid=true;
+      s.answers.forEach(function(a){
+        var el=v.querySelector('[data-canswer="'+a.id+'"]'), raw=String(el.value||'').trim(), given,correct=false;
+        var err=el.closest('.commission-field').querySelector('.field-error'); err.textContent='';
+        if(raw===''){err.textContent='Заполните поле.';valid=false;items.push({answer:a,given:'',correct:false});return;}
+        if(a.type==='choice'){given=raw==='1';correct=given===a.value;}
+        else if(a.type==='time'){given=raw;correct=given===a.value;}
+        else {given=parseFloat(raw.replace(',','.'));if(!isFinite(given)){err.textContent='Введите число.';valid=false;}else{var tol=a.decimals===0?0.5:0.15;correct=Math.abs(given-a.value)<=tol;}}
+        items.push({answer:a,given:given,correct:correct});
+      });
+      if(!valid)return;
+      commissionAttempt={items:items,correct:items.every(function(x){return x.correct;})};
       renderCommissionSolution(root,id,0);
     }
     ui.on(v,'[data-act="checkCommission"]',checkCommission);
-    v.querySelector('#commissionAnswer').addEventListener('keydown',function(e){if(e.key==='Enter')checkCommission();});
-    v.querySelector('#commissionAnswer').focus();
+    v.querySelectorAll('[data-canswer]').forEach(function(el){el.addEventListener('keydown',function(e){if(e.key==='Enter')checkCommission();});});
+    v.querySelector('[data-canswer]').focus();
   }
 
   function renderCommissionSolution(root,id,step) {
     var t=commission.byId(id), sol=t.solution, s=sol.steps[step];
-    var attempt=commissionAttempt||{given:NaN,correct:false};
+    var attempt=commissionAttempt||{items:[],correct:false};
+    var answerReview=attempt.items.map(function(x){var a=x.answer;var given=a.type==='choice'?(x.given?'Задание выполнимо':'Задание невыполнимо'):(a.type==='time'?x.given:units.fmt(x.given,a.decimals)+' '+a.unit);var right=a.type==='choice'?(a.value?'Задание выполнимо':'Задание невыполнимо'):(a.type==='time'?a.value:units.fmt(a.value,a.decimals)+' '+a.unit);return '<li class="'+(x.correct?'ok':'bad')+'"><b>'+ui.esc(a.label)+'</b><span>Ваш ответ: '+ui.esc(given)+' · правильно: '+ui.esc(right)+'</span></li>';}).join('');
     var v=ui.paint(root,
       ui.appbar({mode:'tasks',title:'Решение · '+t.title,backArrow:true})+
       ui.progress(step+1,sol.steps.length,'Шаг '+(step+1)+' из '+sol.steps.length,'var(--tasks)')+
       '<div class="panel" style="--accent:var(--tasks)">'+
         '<div class="verdict '+(attempt.correct?'ok':'bad')+'"><img class="verdict-photo" src="'+
           ui.asset('assets/img/rescuer-'+(attempt.correct?'ok':'wrong')+'.jpg')+'" alt=""><div><b>'+
-          (attempt.correct?'Верно!':'Неверно')+'</b><span class="txt">Ваш ответ: '+
-          (isFinite(attempt.given)?ui.esc(units.fmt(attempt.given,1)+' '+sol.unit):'—')+'<br>Правильный ответ: <b style="display:inline">'+
-          ui.esc(units.fmt(sol.primary,1)+' '+sol.unit)+'</b></span></div></div><div class="solve">'+
+          (attempt.correct?'Все ответы верны!':'Есть ошибки')+'</b><span class="txt">Ниже показана проверка каждого пункта и полный ход решения.</span></div></div>'+
+        '<ul class="commission-review">'+answerReview+'</ul><div class="solve">'+
         '<div class="solve-nav">'+sol.steps.map(function(x,i){return '<button data-cstep="'+i+'"'+(i===step?' class="is-active"':'')+'><span class="n">'+(i+1)+'</span><span>'+ui.esc(x.label)+'</span></button>';}).join('')+'</div>'+
         '<div class="solve-body"><h4>'+(step+1)+'. '+ui.esc(s.label)+'</h4><div class="val">'+ui.esc(s.value)+'</div>'+
           '<div class="dt">'+ui.esc(s.detail||'')+'</div></div></div>'+
-        '<div class="commission-answer">Итог: <b>'+ui.esc(sol.label)+': '+units.fmt(sol.primary,1)+' '+sol.unit+'</b></div>'+
+        '<div class="commission-answer">Итоговая проверка: <b>'+attempt.items.filter(function(x){return x.correct;}).length+' из '+sol.answers.length+' ответов верны</b></div>'+
         '<div class="muted" style="margin-top:14px">Основание: Устав ВГСЧ, пп. 22–23; приказ Ростехнадзора № 520, приложения № 6 и № 7; руководство по эксплуатации Р-30.</div>'+
         '<div class="actions"><button data-act="cprev"'+(step===0?' disabled':'')+'>'+ui.I.prev+'Назад</button><div class="spacer"></div>'+
           (step<sol.steps.length-1?'<button class="primary" style="--accent:var(--tests)" data-act="cnext">Далее'+ui.I.next+'</button>':'<button class="primary" style="--accent:var(--tests)" data-act="commissionList">К списку задач</button>')+'</div>'+

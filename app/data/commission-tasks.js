@@ -48,6 +48,11 @@
   function minutes(hhmm) {
     var p = hhmm.split(':'); return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
   }
+  function clock(total) {
+    total = Math.round(total) % (24 * 60);
+    var h = Math.floor(total / 60), m = total % 60;
+    return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+  }
   function round(v, n) { var k = Math.pow(10, n || 0); return Math.round(v * k) / k; }
   function fmt(v, n) { return round(v, n === undefined ? 1 : n).toFixed(n === undefined ? 1 : n).replace('.', ','); }
   function speed(atm, work, angle, k3) {
@@ -72,16 +77,26 @@
       L[1] / speed(A.UNBREATHABLE, W.VICTIM_UP, 15, k),
       L[0] / speed(A.UNBREATHABLE, W.VICTIM_DOWN, 0, k)
     ];
+    var outTotal = out.reduce(function(a,b){return a+b;},0);
+    var backTotal = back.reduce(function(a,b){return a+b;},0);
     var daTravel = out.slice(2).concat(back).reduce(function (a, b) { return a + b; }, 0);
     var workMin = VGSCH.normative.apparatus.workingProtectiveTime('р-30').minutes;
     var aid = Math.max(0, workMin - daTravel);
     return {
       primary: aid, unit: 'мин', label: 'Допустимое время оказания помощи',
+      answers: [
+        { id:'possible', label:'Возможность выполнения задания', type:'choice', value:aid > 0,
+          options:[{value:true,label:'Задание выполнимо'},{value:false,label:'Задание невыполнимо'}] },
+        { id:'evacuation', label:'Время эвакуации пострадавшего', type:'numeric', value:backTotal, unit:'мин', decimals:1 },
+        { id:'aid', label:'Допустимое время оказания помощи', type:'numeric', value:aid, unit:'мин', decimals:1 },
+        { id:'returnClock', label:'Время возвращения на ПБ', type:'time', value:clock(minutes(v.start)+outTotal+aid+backTotal), unit:'' }
+      ],
       steps: [
         { label: 'Расчётный коэффициент задымлённости', value: 'k₃ = ' + String(k).replace('.', ','), detail: 'Задымлённость неизвестна, поэтому применяется первоначальное значение.' },
-        { label: 'Движение к пострадавшему', value: out.map(function (x, i) { return (i + 1) + '→' + (i + 2) + ': ' + fmt(x) + ' мин'; }).join('; '), detail: 'Всего ' + fmt(out.reduce(function(a,b){return a+b;},0)) + ' мин.' },
+        { label: 'Движение к пострадавшему', value: out.map(function (x, i) { return (i + 1) + '→' + (i + 2) + ': ' + fmt(x) + ' мин'; }).join('; '), detail: 'Всего ' + fmt(outTotal) + ' мин. Скорости выбраны по таблице № 1 приложения № 7.' },
         { label: 'Эвакуация пострадавшего', value: back.map(function (x, i) { return (6 - i) + '→' + (5 - i) + ': ' + fmt(x) + ' мин'; }).join('; '), detail: 'Всего ' + fmt(back.reduce(function(a,b){return a+b;},0)) + ' мин.' },
-        { label: 'Время работы в Р-30', value: fmt(workMin) + ' − ' + fmt(daTravel) + ' = ' + fmt(aid) + ' мин', detail: 'Время в пригодной атмосфере до точки 3 в лимит работы в ДА не включается.' }
+        { label: 'Время работы в Р-30', value: fmt(workMin) + ' − ' + fmt(daTravel) + ' = ' + fmt(aid) + ' мин', detail: 'Время в пригодной атмосфере до точки 3 в лимит работы в ДА не включается.' },
+        { label: 'Вывод и возвращение на ПБ', value: (aid > 0 ? 'Задание выполнимо' : 'Задание невыполнимо') + '; возвращение в ' + clock(minutes(v.start)+outTotal+aid+backTotal), detail: 'К времени выхода прибавлены движение вперёд, оказание помощи и эвакуация.' }
       ]
     };
   }
@@ -103,6 +118,12 @@
     var canContinue = additional >= 0;
     return {
       primary: permitted, unit: 'атм.', label: 'Допустимый дополнительный расход из точки № 5',
+      answers: [
+        { id:'additional', label:'Допустимый расход на движение вперёд из точки № 5', type:'numeric', value:permitted, unit:'атм.', decimals:1 },
+        { id:'stopPressure', label:'Минимальное давление возвращения на ПБ', type:'numeric', value:stopPressure, unit:'атм.', decimals:1 },
+        { id:'distance', label:'Расчётное пройденное расстояние', type:'numeric', value:total, unit:'м', decimals:1 },
+        { id:'reels', label:'Количество катушек связи', type:'numeric', value:reels, unit:'шт.', decimals:0 }
+      ],
       steps: [
         { label: 'Давление прекращения движения вперёд', value: fmt(v.pressure) + ' − (' + fmt(usable) + ' ÷ 3) = ' + fmt(stopPressure) + ' атм.', detail: 'На маршруте есть спуск более 10°, поэтому рабочий запас распределяется ⅓ туда и ⅔ обратно.' },
         { label: 'Остаток для движения из точки № 5', value: fmt(v.readings[4]) + ' − ' + fmt(stopPressure) + ' = ' + fmt(additional) + ' атм.', detail: canContinue ? 'Продвижение возможно в пределах этого расхода.' : 'Давление возвращения уже пройдено; дальнейшее продвижение запрещено.' },
@@ -125,6 +146,12 @@
     var pressureForward=(195-50)/3;
     return {
       primary: outTotal + backTotal, unit: 'мин', label: 'Время резервного отделения туда и обратно',
+      answers: [
+        { id:'pressure', label:'Допустимый расход на движение вперёд', type:'numeric', value:pressureForward, unit:'атм.', decimals:1 },
+        { id:'outTime', label:'Время движения резервного отделения до точки № 6', type:'numeric', value:outTotal, unit:'мин', decimals:1 },
+        { id:'backTime', label:'Время обратного движения', type:'numeric', value:backTotal, unit:'мин', decimals:1 },
+        { id:'totalTime', label:'Общее время туда и обратно', type:'numeric', value:outTotal+backTotal, unit:'мин', decimals:1 }
+      ],
       steps: [
         { label: 'Длина участков по движению первого отделения', value: distances.map(function(x,i){return (i+1)+'→'+(i+2)+': '+fmt(x)+' м';}).join('; '), detail: 'При видимости 8 м применяется k₃ = 1,43.' },
         { label: 'Движение резервного отделения к точке № 6', value: out.map(function(x,i){return (i+1)+'→'+(i+2)+': '+fmt(x)+' мин';}).join('; '), detail: 'При видимости 4 м применяется k₃ = 2. Всего ' + fmt(outTotal) + ' мин.' },
