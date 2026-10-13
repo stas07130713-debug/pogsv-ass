@@ -212,8 +212,14 @@
 
     var tasks;
     try {
-      tasks = VGSCH.engine.pipeline.produceSet(cfg.exam.taskCount)
-        .map(function (t) { return { kind: 'task', task: t }; });
+      /* В экзамене взвода — по одному варианту из каждого из трёх блоков
+         комиссии. Вариант внутри блока выбирается заново для каждого экзамена. */
+      var commissionTasks = VGSCH.data.commissionTasks.all();
+      tasks = [1, 2, 3].map(function (series) {
+        var pool = commissionTasks.filter(function (t) { return t.series === series; });
+        return { kind: 'task', commission: true,
+          task: pool[Math.floor(rng.next() * pool.length)] };
+      });
     } catch (e) {
       ui.wireNav(ui.paint(root, ui.appbar({ mode: 'exam', title: 'Экзамен' }) +
         '<div class="panel"><div class="notice">Не удалось подготовить задачи: ' +
@@ -305,7 +311,9 @@
   }
 
   function answeredCount(arr) {
-    return arr.filter(function (a) { return a !== undefined; }).length;
+    return arr.filter(function (a) {
+      return a !== undefined && (!a.commission || a.complete);
+    }).length;
   }
 
   /* --------------------------------------------------------------- хаб --- */
@@ -462,7 +470,70 @@
 
   /* ------------------------------------------------------------- задачи -- */
 
+  function commissionScheme(t) {
+    var xs=[45,175,305,435,565,695], ys=[95,95,155,155,215,215], labels=[];
+    for(var i=0;i<5;i++){
+      var cx=(xs[i]+xs[i+1])/2;
+      var primary=t.angles[i]+'°'+(t.lengths?' · '+t.lengths[i]+' м':'');
+      var secondary=t.readings ? t.readings[i]+' → '+(i<4?t.readings[i+1]:'?')+' атм.'
+        : t.arrivals ? t.arrivals[i]+' → '+t.arrivals[i+1] : '';
+      labels.push('<text class="seg-label" x="'+cx+'" y="'+(Math.min(ys[i],ys[i+1])-19)+'" text-anchor="middle">'+primary+'</text>');
+      if(secondary) labels.push('<text class="seg-sub" x="'+cx+'" y="'+(Math.max(ys[i],ys[i+1])+30)+'" text-anchor="middle">'+secondary+'</text>');
+    }
+    return '<div class="commission-scheme"><svg viewBox="0 0 740 260" role="img" aria-label="Схема маршрута">'+
+      '<polyline points="'+xs.map(function(x,i){return x+','+ys[i];}).join(' ')+'"/>'+labels.join('')+
+      xs.map(function(x,i){return '<circle cx="'+x+'" cy="'+ys[i]+'" r="14"/><text class="point" x="'+x+'" y="'+(ys[i]+5)+'" text-anchor="middle">'+(i+1)+'</text>';}).join('')+'</svg></div>';
+  }
+
+  function commissionAnswerText(a, value) {
+    if(value === undefined || value === null || value === '') return 'ответ не дан';
+    if(a.type === 'choice') return value ? 'Задание выполнимо' : 'Задание невыполнимо';
+    if(a.type === 'time') return String(value);
+    return units.fmt(Number(value), a.decimals) + (a.unit ? ' ' + a.unit : '');
+  }
+
+  function commissionCorrect(a, value) {
+    if(value === undefined || value === null || value === '') return false;
+    if(a.type === 'numeric') {
+      var n=Number(value), tol=a.decimals===0?0.5:0.15;
+      return isFinite(n) && Math.abs(n-a.value)<=tol;
+    }
+    return value===a.value;
+  }
+
+  function renderCommissionExamTask(root, index) {
+    var item=run.tasks[index], t=item.task, answers=t.solution.answers;
+    var saved=run.tAnswers[index] || {commission:true,values:{},complete:false};
+    var last=index===run.tasks.length-1;
+    function field(a,i){
+      var val=saved.values[a.id];
+      if(a.type==='choice') return '<label class="commission-field"><span>'+(i+1)+'. '+ui.esc(a.label)+'</span><select data-canswer="'+ui.esc(a.id)+'"><option value="">Выберите вариант</option>'+a.options.map(function(o){return '<option value="'+(o.value?'1':'0')+'"'+(val===o.value?' selected':'')+'>'+ui.esc(o.label)+'</option>';}).join('')+'</select></label>';
+      var shown=val===undefined?'':String(val).replace('.',',');
+      return '<label class="commission-field"><span>'+(i+1)+'. '+ui.esc(a.label)+(a.unit?' ('+ui.esc(a.unit)+')':'')+'</span><div class="answer-row"><input type="'+(a.type==='time'?'time':'text')+'" '+(a.type==='numeric'?'inputmode="decimal" ':'')+'data-canswer="'+ui.esc(a.id)+'" autocomplete="off" value="'+ui.esc(shown)+'" placeholder="'+(a.type==='time'?'ЧЧ:ММ':'Числовое значение')+'">'+(a.unit?'<span class="unit">'+ui.esc(a.unit)+'</span>':'')+'</div></label>';
+    }
+    var v=ui.paint(root,
+      ui.appbar({mode:'exam',title:'Экзамен',showTimer:true,backArrow:true})+
+      ui.progress(index+1,run.tasks.length,'Задача '+(index+1)+' из '+run.tasks.length,'var(--tasks)')+
+      '<div class="panel" style="--accent:var(--tasks)"><div class="qbox"><div class="muted" style="margin-bottom:8px">'+ui.esc(VGSCH.data.commissionTasks.groupTitle)+' · блок '+t.series+'</div><div class="question" style="margin:0">'+ui.esc(t.condition)+'</div></div>'+commissionScheme(t)+
+      '<div class="task-inputs"><h4>Принятая методика</h4><ul><li>Дыхательный аппарат — Р-30.</li><li>Одна катушка связи — 800 м.</li><li>Промежуточный угол относится к ближайшему большему столбцу таблицы № 1.</li></ul></div><div class="commission-answer-fields"><h4>Ответы</h4>'+answers.map(field).join('')+'</div>'+
+      '<div class="actions"><button data-act="prev"'+(index===0?' disabled':'')+'>'+ui.I.prev+'Назад</button><div class="spacer"></div><button class="primary" data-act="next">'+(last?'К общему прогрессу':'Далее')+ui.I.next+'</button></div>'+VGSCH.feedback.button()+'</div>'+ui.tabbar('exam'));
+    paintTimer(timerSeconds(),rules().timeLimitMin>0&&timerSeconds()<=60);
+    function store(){
+      var values={},complete=true;
+      answers.forEach(function(a){var el=v.querySelector('[data-canswer="'+a.id+'"]'),raw=String(el.value||'').trim();if(raw===''){complete=false;return;}if(a.type==='choice')values[a.id]=raw==='1';else if(a.type==='numeric'){var n=parseFloat(raw.replace(',','.'));if(!isFinite(n)){complete=false;return;}values[a.id]=n;}else values[a.id]=raw;});
+      run.tAnswers[index]={commission:true,values:values,complete:complete};
+    }
+    v.querySelectorAll('[data-canswer]').forEach(function(el){el.addEventListener('change',store);el.addEventListener('input',store);el.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();store();el.blur();if(last)renderHub(root);else renderTask(root,index+1);}});});
+    VGSCH.feedback.wire(v,function(){return {mode:'Экзамен',kind:'Комбинированная задача',id:t.id,text:t.condition,extra:'Блок '+t.series+'; Р-30; катушка связи 800 м; углы: '+t.angles.join('°, ')+'°.'};});
+    ui.on(v,'[data-act="prev"]',function(){store();renderTask(root,index-1);});
+    ui.on(v,'[data-act="next"]',function(){store();if(last)renderHub(root);else renderTask(root,index+1);});
+    VGSCH.router.setBackHandler(function(){store();renderHub(root);return true;});
+    ui.on(v,'.appbar [data-back]',function(){VGSCH.router.back();});
+    ui.on(v,'.tabbar [data-nav]',function(b){if(confirm('Выйти из экзамена? Результаты текущего подхода будут потеряны.')){stopTimer();run=null;VGSCH.router.go(b.dataset.nav);}});
+  }
+
   function renderTask(root, index) {
+    if (run.tasks[index].commission) { renderCommissionExamTask(root, index); return; }
     var t = run.tasks[index].task;
     var given = run.tAnswers[index];
     var last = index === run.tasks.length - 1;
@@ -574,6 +645,22 @@
     });
 
     run.tasks.forEach(function (item, i) {
+      if (item.commission) {
+        var ct=item.task, ca=ct.solution.answers;
+        var attempt=run.tAnswers[i] || {values:{},complete:false};
+        var checks=ca.map(function(a){return {answer:a,given:attempt.values[a.id],correct:commissionCorrect(a,attempt.values[a.id])};});
+        var allCorrect=checks.every(function(x){return x.correct;});
+        if(allCorrect)tCorrect++;
+        details.push({
+          kind:'task',n:run.questions.length+i+1,correct:allCorrect,
+          text:ct.title+'. '+ct.condition,
+          given:checks.map(function(x,k){return (k+1)+'. '+x.answer.label+': '+commissionAnswerText(x.answer,x.given);}).join('; '),
+          right:checks.map(function(x,k){return (k+1)+'. '+x.answer.label+': '+commissionAnswerText(x.answer,x.answer.value);}).join('; '),
+          npa:'Устав ВГСЧ, пп. 22–23; приказ Ростехнадзора № 520, приложения № 6 и № 7; руководство по эксплуатации Р-30.',
+          steps:ct.solution.steps.map(function(s){return s.label+': '+s.value+'. '+s.detail;})
+        });
+        return;
+      }
       var t = item.task, a = t.answer, given = run.tAnswers[i], isCorrect;
       if (given === undefined) isCorrect = false;
       else if (a.type === 'numeric') {
@@ -798,6 +885,9 @@
               '<span class="a">' + ui.esc(d.right) + '</span></div>') +
             (d.npa ? '<div class="line"><span class="k">Основание:</span><span>' +
                      ui.esc(d.npa) + '</span></div>' : '') +
+            (d.kind === 'task' && d.steps ? '<div class="task-inputs"><h4>Порядок решения</h4><ol>' +
+              d.steps.map(function (s) { return '<li>' + ui.esc(s) + '</li>'; }).join('') +
+              '</ol></div>' : '') +
           '</div>';
         }).join('') +
         '<div class="actions">' +

@@ -96,11 +96,14 @@
     var xs=[45,175,305,435,565,695], ys=[95,95,155,155,215,215];
     var labels=[];
     for(var i=0;i<5;i++){
-      var extra=t.lengths ? ' · '+t.lengths[i]+' м' : '';
-      if(t.readings) extra+=' · '+t.readings[i]+'→'+(i<4?t.readings[i+1]:'?')+' атм.';
-      if(t.arrivals) extra+=' · '+t.arrivals[i]+'→'+t.arrivals[i+1];
-      labels.push('<text x="'+((xs[i]+xs[i+1])/2)+'" y="'+((ys[i]+ys[i+1])/2-10)+'" text-anchor="middle">'+
-        t.angles[i]+'°'+extra+'</text>');
+      var cx=(xs[i]+xs[i+1])/2;
+      var top=Math.min(ys[i],ys[i+1])-19;
+      var bottom=Math.max(ys[i],ys[i+1])+30;
+      var primary=t.angles[i]+'°'+(t.lengths?' · '+t.lengths[i]+' м':'');
+      var secondary=t.readings ? t.readings[i]+' → '+(i<4?t.readings[i+1]:'?')+' атм.'
+        : t.arrivals ? t.arrivals[i]+' → '+t.arrivals[i+1] : '';
+      labels.push('<text class="seg-label" x="'+cx+'" y="'+top+'" text-anchor="middle">'+primary+'</text>');
+      if(secondary) labels.push('<text class="seg-sub" x="'+cx+'" y="'+bottom+'" text-anchor="middle">'+secondary+'</text>');
     }
     return '<div class="commission-scheme"><svg viewBox="0 0 740 260" role="img" aria-label="Схема маршрута">' +
       '<polyline points="'+xs.map(function(x,i){return x+','+ys[i];}).join(' ')+'"/>' + labels.join('') +

@@ -1304,6 +1304,9 @@ body.is-modal { overflow: hidden; }
 .commission-scheme polyline { fill:none; stroke:#f0b24f; stroke-width:7; stroke-linecap:round; stroke-linejoin:round; }
 .commission-scheme circle { fill:#101923; stroke:#f0b24f; stroke-width:3; }
 .commission-scheme text { fill:var(--text); font-size:13px; }
+.commission-scheme .seg-label,
+.commission-scheme .seg-sub { paint-order:stroke fill; stroke:#071019; stroke-width:7px; stroke-linejoin:round; font-weight:700; }
+.commission-scheme .seg-sub { fill:#d9e2eb; font-size:12px; font-weight:600; }
 .commission-scheme .point { font-size:13px; font-weight:800; }
 .commission-answer { margin-top:16px; padding:14px 16px; border-radius:14px; background:rgba(47,151,99,.16); border:1px solid rgba(83,205,139,.4); }
 .commission-answer-fields { display:grid; gap:13px; margin:18px 0; }
