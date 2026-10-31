@@ -572,6 +572,8 @@ button.ok { background: var(--ok); border-color: transparent; color: #fff; }
 .solve-body .val { font-size: 15px; font-variant-numeric: tabular-nums; margin: 6px 0; }
 .solve-body .pt { margin-top: 10px; font-size: 12.5px; color: var(--text-mute); }
 .solve-body .dt { margin-top: 8px; font-size: 13px; color: var(--text-dim); }
+.calc-lines { display:grid; gap:9px; margin:14px 0 0; padding-left:24px; color:var(--text); font-size:13.5px; line-height:1.52; }
+.calc-lines li::marker { color:var(--tasks); font-weight:800; }
 
 /* ============================================================ схема ====== */
 
@@ -1295,6 +1297,7 @@ body.is-modal { overflow: hidden; }
 
 /* Фиксированные комбинированные задачи комиссии МЧС. */
 .commission-pick { border-color:rgba(237,174,72,.55); }
+.commission-condition { white-space:pre-line; }
 .commission-series { margin-top:20px; }
 .commission-series h4 { margin:0 0 10px; }
 .commission-variants { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; }

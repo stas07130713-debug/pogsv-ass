@@ -136,7 +136,7 @@
       ui.appbar({mode:'tasks',title:t.title,backArrow:true})+
       '<div class="panel" style="--accent:var(--tasks)">' +
         '<div class="qbox"><div class="muted" style="margin-bottom:8px">'+ui.esc(commission.groupTitle)+'</div>'+
-          '<div class="question" style="margin:0">'+ui.esc(t.condition)+'</div></div>'+
+          '<div class="question commission-condition" style="margin:0">'+ui.esc(t.condition)+'</div></div>'+
         commissionScheme(t)+
         '<div class="task-inputs"><h4>Принятая методика</h4><ul>'+
           '<li>Дыхательный аппарат — Р-30.</li><li>Одна катушка связи — 800 м.</li>'+
@@ -184,7 +184,9 @@
         '<ul class="commission-review">'+answerReview+'</ul><div class="solve">'+
         '<div class="solve-nav">'+sol.steps.map(function(x,i){return '<button data-cstep="'+i+'"'+(i===step?' class="is-active"':'')+'><span class="n">'+(i+1)+'</span><span>'+ui.esc(x.label)+'</span></button>';}).join('')+'</div>'+
         '<div class="solve-body"><h4>'+(step+1)+'. '+ui.esc(s.label)+'</h4><div class="val">'+ui.esc(s.value)+'</div>'+
-          '<div class="dt">'+ui.esc(s.detail||'')+'</div></div></div>'+
+          '<div class="dt">'+ui.esc(s.detail||'')+'</div>'+
+          (s.lines&&s.lines.length?'<ol class="calc-lines">'+s.lines.map(function(line){return '<li>'+ui.esc(line)+'</li>';}).join('')+'</ol>':'')+
+          (s.point?'<div class="pt"><b>Основание:</b> '+ui.esc(s.point)+'</div>':'')+'</div></div>'+
         '<div class="commission-answer">Итоговая проверка: <b>'+attempt.items.filter(function(x){return x.correct;}).length+' из '+sol.answers.length+' ответов верны</b></div>'+
         '<div class="muted" style="margin-top:14px">Основание: Устав ВГСЧ, пп. 22–23; приказ Ростехнадзора № 520, приложения № 6 и № 7; руководство по эксплуатации Р-30.</div>'+
         '<div class="actions"><button data-act="cprev"'+(step===0?' disabled':'')+'>'+ui.I.prev+'Назад</button><div class="spacer"></div>'+

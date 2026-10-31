@@ -514,7 +514,7 @@
     var v=ui.paint(root,
       ui.appbar({mode:'exam',title:'Экзамен',showTimer:true,backArrow:true})+
       ui.progress(index+1,run.tasks.length,'Задача '+(index+1)+' из '+run.tasks.length,'var(--tasks)')+
-      '<div class="panel" style="--accent:var(--tasks)"><div class="qbox"><div class="muted" style="margin-bottom:8px">'+ui.esc(VGSCH.data.commissionTasks.groupTitle)+' · блок '+t.series+'</div><div class="question" style="margin:0">'+ui.esc(t.condition)+'</div></div>'+commissionScheme(t)+
+      '<div class="panel" style="--accent:var(--tasks)"><div class="qbox"><div class="muted" style="margin-bottom:8px">'+ui.esc(VGSCH.data.commissionTasks.groupTitle)+' · блок '+t.series+'</div><div class="question commission-condition" style="margin:0">'+ui.esc(t.condition)+'</div></div>'+commissionScheme(t)+
       '<div class="task-inputs"><h4>Принятая методика</h4><ul><li>Дыхательный аппарат — Р-30.</li><li>Одна катушка связи — 800 м.</li><li>Промежуточный угол относится к ближайшему большему столбцу таблицы № 1.</li></ul></div><div class="commission-answer-fields"><h4>Ответы</h4>'+answers.map(field).join('')+'</div>'+
       '<div class="actions"><button data-act="prev"'+(index===0?' disabled':'')+'>'+ui.I.prev+'Назад</button><div class="spacer"></div><button class="primary" data-act="next">'+(last?'К общему прогрессу':'Далее')+ui.I.next+'</button></div>'+VGSCH.feedback.button()+'</div>'+ui.tabbar('exam'));
     paintTimer(timerSeconds(),rules().timeLimitMin>0&&timerSeconds()<=60);
@@ -657,7 +657,11 @@
           given:checks.map(function(x,k){return (k+1)+'. '+x.answer.label+': '+commissionAnswerText(x.answer,x.given);}).join('; '),
           right:checks.map(function(x,k){return (k+1)+'. '+x.answer.label+': '+commissionAnswerText(x.answer,x.answer.value);}).join('; '),
           npa:'Устав ВГСЧ, пп. 22–23; приказ Ростехнадзора № 520, приложения № 6 и № 7; руководство по эксплуатации Р-30.',
-          steps:ct.solution.steps.map(function(s){return s.label+': '+s.value+'. '+s.detail;})
+          steps:ct.solution.steps.map(function(s){
+            return s.label+': '+s.value+'. '+s.detail+
+              (s.lines&&s.lines.length?' '+s.lines.join(' '):'')+
+              (s.point?' Основание: '+s.point:'');
+          })
         });
         return;
       }
