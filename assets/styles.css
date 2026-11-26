@@ -509,7 +509,7 @@ button.ok { background: var(--ok); border-color: transparent; color: #fff; }
 .verdict.ok b  { color: #6fd39b; }
 .verdict.bad b { color: #f28e8b; }
 .verdict .txt { font-size: 14px; color: var(--text-dim); }
-.verdict .src { display: block; margin-top: 7px; font-size: 12.5px; color: var(--text-mute); }
+.verdict .src { display: block; margin-top: 7px; font-size: 13.5px; color: var(--text-dim); }
 /* Снимок показывается целиком: высота задаётся им, ширина подстраивается.
    Так рамка ровно облегает фигуру — раньше стояла фиксированная ширина
    и min-height, из-за чего под коротким текстом оставалась пустая полоса

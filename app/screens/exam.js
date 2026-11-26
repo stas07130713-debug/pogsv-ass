@@ -260,7 +260,7 @@
         var order = rng.shuffle(q.o.map(function (_, i) { return i; }));
         return {
           kind: 'question',
-          q: { id: q.id, question: q.q, section: q.topic, npa: null },
+          q: { id: q.id, question: q.q, section: q.topic, npa: q.npa || null, explanation: q.explanation || null },
           options: order.map(function (i) { return q.o[i]; }),
           correct: order.indexOf(q.correct)
         };
@@ -640,7 +640,8 @@
         text: item.q.question,
         given: given === undefined ? null : item.options[given],
         right: item.options[item.correct],
-        npa: item.q.npa
+        npa: item.q.npa,
+        explanation: item.q.explanation
       });
     });
 
@@ -889,6 +890,7 @@
               '<span class="a">' + ui.esc(d.right) + '</span></div>') +
             (d.npa ? '<div class="line"><span class="k">Основание:</span><span>' +
                      ui.esc(d.npa) + '</span></div>' : '') +
+            (d.explanation ? '<div class="line"><span class="k">Пояснение:</span><span>' + ui.esc(d.explanation) + '</span></div>' : '') +
             (d.kind === 'task' && d.steps ? '<div class="task-inputs"><h4>Порядок решения</h4><ol>' +
               d.steps.map(function (s) { return '<li>' + ui.esc(s) + '</li>'; }).join('') +
               '</ol></div>' : '') +

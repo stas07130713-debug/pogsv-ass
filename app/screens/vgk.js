@@ -177,14 +177,15 @@
           ui.asset('assets/img/rescuer-' + (correct ? 'ok' : 'wrong') + '.jpg') + '" alt="">' +
         '<div><b>' + (correct ? 'Верно!' : 'Неверно') + '</b>' +
           '<span class="txt">' +
-            (correct ? 'Ответ соответствует требованиям НПА.'
+            (correct ? (item.q.id === 'В1-14' || item.q.id === 'В3-2'
+                        ? 'Ответ подтверждён учебным источником.'
+                        : 'Ответ соответствует требованиям НПА.')
                      : 'Правильный ответ: ' + ui.esc(item.options[item.correct])) +
           '</span>' +
-          /* Основание показываем только при ошибке и только там, где оно
-             записано в билете: несколько ответов люди уже оспаривали,
-             и ссылка на документ снимает спор на месте. */
-          (!correct && item.q.npa
+          (item.q.npa
             ? '<span class="src">Основание: ' + ui.esc(item.q.npa) + '</span>' : '') +
+          (item.q.explanation
+            ? '<span class="src">Пояснение: ' + ui.esc(item.q.explanation) + '</span>' : '') +
         '</div>' +
       '</div>';
     view.querySelector('#next').disabled = false;
@@ -240,6 +241,8 @@
             (given === undefined ? 'не дан' : ui.esc(item.options[given])) + '</span></div>' +
           '<div class="line ok"><span class="k">Правильный ответ:</span><span class="a">' +
             ui.esc(item.options[item.correct]) + '</span></div>' +
+          (item.q.npa ? '<div class="line"><span class="k">Основание:</span><span>' + ui.esc(item.q.npa) + '</span></div>' : '') +
+          (item.q.explanation ? '<div class="line"><span class="k">Пояснение:</span><span>' + ui.esc(item.q.explanation) + '</span></div>' : '') +
         '</div>';
       }).join('');
   }
